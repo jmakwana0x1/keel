@@ -128,3 +128,11 @@ What *is* true is that the naive error is two-sided and fat-tailed. At ±10%:
 **Decision (the build plan's standing risk, "saturation is small on real books", realised):** the pitch does not lead on "naive depth is badly wrong." It leads on enforceability. The meter's case is that the naive figure cannot be relied on in either direction, and that its failures concentrate in exactly the books and moments a depth guarantee is bought for. The saturation table is still published in full, tails included.
 
 **Method note:** "fork" in `BUILD-PLAN` §0.3 is implemented as archive `eth_call` against the state at each block rather than an anvil fork. It reads the same state, and the QuoterV2 differential executes the deployed pool code on it.
+
+### D0.7 addendum — no CI below 10 clusters (2026-11-23)
+
+The first CI run of `model.py` drifted on the **mid-cap** wild-cluster bounds only. Mid-cap has 4 pools. With G = 4 and Webb weights there are 6⁴ = 1,296 distinct draws, so many bootstrap t-statistics tie exactly with the observed one, and BLAS rounding on a different machine flipped those comparisons. An interval that changes with the BLAS build is not a measurement.
+
+- **Decision:** below 10 clusters no cluster-robust CI is published. Both CRV1-t and WCR are declined (rule 1). Blue-chip (8 pools) and mid-cap (4 pools) now report the point estimate with "CI declined". A relative tie tolerance of 1e-9 is added to the bootstrap comparison so float noise cannot decide ties in the subsets that remain.
+- **Rejected:** enumerating all 6^G weight vectors. That makes the p-value exact but leaves it a coarse step function, and a CI from four clusters is not informative however it is computed.
+- **Unchanged:** the branch decision reads non-blue-chip (G = 15). Its bounds were identical on both machines, and the branch is still 3a.

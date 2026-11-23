@@ -40,6 +40,7 @@ def classify(pools: list[dict], days: pd.DataFrame) -> dict[str, str]:
     return out
 
 
+MIN_CLUSTERS = 10  # below this no cluster-robust CI is published (D0.7 addendum)
 WEBB = np.array([-np.sqrt(1.5), -1.0, -np.sqrt(0.5), np.sqrt(0.5), 1.0, np.sqrt(1.5)])
 BOOT_B, BOOT_SEED = 9999, 20261123
 
@@ -80,7 +81,8 @@ def _wcr_ci(x, y, Z, groups, alpha=0.05):
         bstar = b0 + (xa - b0 * xb) / sxx
         sg = b0 * Hxx[:, None] + HxA - b0 * HxB - bstar[None, :] * Hxx[:, None]
         tstar = (bstar - b0) / np.sqrt(c * (sg ** 2).sum(axis=0) / sxx ** 2)
-        return ((np.abs(tstar) >= abs(t_obs)).sum() + 1) / (BOOT_B + 1)
+        # relative tie tolerance: with few clusters draws tie with t_obs exactly, and float noise must not decide them
+        return ((np.abs(tstar) >= abs(t_obs) * (1 - 1e-9)).sum() + 1) / (BOOT_B + 1)
 
     def bound(direction):
         inside, outside = bhat, bhat + direction * 4 * se_hat
@@ -105,6 +107,11 @@ def elasticity(df: pd.DataFrame, depth_col: str, lag: bool = False) -> dict:
     m = smf.ols("lv ~ ld + ls + lp + C(pool) + C(date)", data=d).fit(
         cov_type="cluster", cov_kwds={"groups": pd.factorize(d.pool)[0]}, use_t=True)
     lo, hi = m.conf_int().loc["ld"]
+    G = int(d.pool.nunique())
+    if G < MIN_CLUSTERS:
+        return {"eps": r(m.params["ld"]), "ci95": None, "ci95_crv1_t": None, "ci95_wild_cluster": None,
+                "ci_declined": f"{G} clusters < {MIN_CLUSTERS}: no cluster-robust CI is reliable",
+                "n_obs": int(len(d)), "n_pools": G}
     Z = np.column_stack([d.ls, d.lp, pd.get_dummies(d.pool).to_numpy(float),
                          pd.get_dummies(d.date, drop_first=True).to_numpy(float)])
     b, _, (wlo, whi) = _wcr_ci(d.ld.to_numpy(), d.lv.to_numpy(), Z, pd.factorize(d.pool)[0])
@@ -118,7 +125,7 @@ def elasticity(df: pd.DataFrame, depth_col: str, lag: bool = False) -> dict:
 def branch(e: dict) -> dict:
     """docs/ARCHITECTURE.md D0.5: reads the lower bound of the wider of the CRV1-t and wild-cluster CIs;
     a CI straddling a threshold takes the more conservative branch."""
-    if e.get("eps") is None:
+    if e.get("eps") is None or e.get("ci95") is None:
         return {"branch": "undetermined", "reason": "insufficient pools"}
     lo = e["ci95"][0]
     if lo > 0.5:
@@ -238,8 +245,9 @@ def render(res: dict) -> str:
           "|---|---|---|---|---|---|---|---|---|---|"]
     for k, v in res["epsilon"].items():
         a, b, c = v["depth_1pct"], v["depth_5pct"], v["depth_1pct_lagged"]
-        L.append(f"| {k} | {a.get('eps')} | {a.get('ci95')} | {a.get('ci95_crv1_t')} | {a.get('ci95_wild_cluster')} | "
-                 f"{b.get('eps')} | {b.get('ci95')} | {c.get('eps')} | {a.get('n_pools')} | {a.get('n_obs')} |")
+        ci = lambda e, key: e.get(key) if e.get(key) is not None else "declined (< 10 pools)"
+        L.append(f"| {k} | {a.get('eps')} | {ci(a, 'ci95')} | {ci(a, 'ci95_crv1_t')} | {ci(a, 'ci95_wild_cluster')} | "
+                 f"{b.get('eps')} | {ci(b, 'ci95')} | {c.get('eps')} | {a.get('n_pools')} | {a.get('n_obs')} |")
     br = res["epsilon_branch"]
     L += ["", f"**Branch (rule D0.5 as amended by D0.6, non-blue-chip, ±1%): {br['on_depth_1pct']['branch']}**. "
           f"{br['on_depth_1pct']['reason']}. On ±5%: {br['on_depth_5pct']['branch']}.", "", f"Caveat: {br['caveat']}.", "",

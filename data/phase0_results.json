@@ -111,55 +111,28 @@
   "blue-chip": {
    "depth_1pct": {
     "eps": 0.8491,
-    "se_crv1": 0.0449,
-    "ci95_crv1_t": [
-     0.743,
-     0.9552
-    ],
-    "ci95_wild_cluster": [
-     0.7202,
-     0.9886
-    ],
-    "ci95": [
-     0.7202,
-     0.9886
-    ],
+    "ci95": null,
+    "ci95_crv1_t": null,
+    "ci95_wild_cluster": null,
+    "ci_declined": "8 clusters < 10: no cluster-robust CI is reliable",
     "n_obs": 720,
     "n_pools": 8
    },
    "depth_5pct": {
     "eps": 0.6649,
-    "se_crv1": 0.1891,
-    "ci95_crv1_t": [
-     0.2178,
-     1.112
-    ],
-    "ci95_wild_cluster": [
-     0.1968,
-     1.0897
-    ],
-    "ci95": [
-     0.1968,
-     1.112
-    ],
+    "ci95": null,
+    "ci95_crv1_t": null,
+    "ci95_wild_cluster": null,
+    "ci_declined": "8 clusters < 10: no cluster-robust CI is reliable",
     "n_obs": 720,
     "n_pools": 8
    },
    "depth_1pct_lagged": {
     "eps": 0.7396,
-    "se_crv1": 0.0594,
-    "ci95_crv1_t": [
-     0.5991,
-     0.8801
-    ],
-    "ci95_wild_cluster": [
-     0.5672,
-     0.9
-    ],
-    "ci95": [
-     0.5672,
-     0.9
-    ],
+    "ci95": null,
+    "ci95_crv1_t": null,
+    "ci95_wild_cluster": null,
+    "ci_declined": "8 clusters < 10: no cluster-robust CI is reliable",
     "n_obs": 712,
     "n_pools": 8
    }
@@ -167,55 +140,28 @@
   "mid-cap": {
    "depth_1pct": {
     "eps": 0.8056,
-    "se_crv1": 0.0519,
-    "ci95_crv1_t": [
-     0.6404,
-     0.9708
-    ],
-    "ci95_wild_cluster": [
-     0.5347,
-     0.9641
-    ],
-    "ci95": [
-     0.5347,
-     0.9708
-    ],
+    "ci95": null,
+    "ci95_crv1_t": null,
+    "ci95_wild_cluster": null,
+    "ci_declined": "4 clusters < 10: no cluster-robust CI is reliable",
     "n_obs": 360,
     "n_pools": 4
    },
    "depth_5pct": {
     "eps": 0.7698,
-    "se_crv1": 0.0482,
-    "ci95_crv1_t": [
-     0.6165,
-     0.9231
-    ],
-    "ci95_wild_cluster": [
-     0.4535,
-     0.8962
-    ],
-    "ci95": [
-     0.4535,
-     0.9231
-    ],
+    "ci95": null,
+    "ci95_crv1_t": null,
+    "ci95_wild_cluster": null,
+    "ci_declined": "4 clusters < 10: no cluster-robust CI is reliable",
     "n_obs": 360,
     "n_pools": 4
    },
    "depth_1pct_lagged": {
     "eps": 0.6215,
-    "se_crv1": 0.0468,
-    "ci95_crv1_t": [
-     0.4725,
-     0.7704
-    ],
-    "ci95_wild_cluster": [
-     0.3577,
-     0.7822
-    ],
-    "ci95": [
-     0.3577,
-     0.7822
-    ],
+    "ci95": null,
+    "ci95_crv1_t": null,
+    "ci95_wild_cluster": null,
+    "ci_declined": "4 clusters < 10: no cluster-robust CI is reliable",
     "n_obs": 356,
     "n_pools": 4
    }
