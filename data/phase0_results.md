@@ -66,6 +66,72 @@ Decline rule: POST-HOC (chosen after seeing ratios like 327 and -465 on pools wi
 | LINK/WETH 0.3% | mid-cap | 0.2302 ± 0.0511 | 0.5393 ± 0.119 | 0.9019 ± 0.1631 | 1.4247 | 628,506 | 895,420 |
 | UNI/WETH 0.3% | mid-cap | -0.0681 ± 0.3641 | 0.4185 ± 0.3216 | 0.4371 ± 0.4112 | 1.094 | 1,152,146 | 1,260,446 |
 
+## Band economics — does a mandate band have a positive reserve?
+
+Synthetic mandate band at ±x around spot, re-centred daily, sized so the band alone supplies notional D of depth to +x (D0.8). R*_band = k_arb(h=25)·LVR_band − fees_band over the window. Price-taking: the sign does not depend on D.
+
+**Pools with R*_band > 0: 7 of 23 at ±1%, 9 of 23 at ±5%.**
+
+| Class | ±x | pools | R* > 0 (h=25) | median R*/LVR | aggregate R*/LVR | median fees/LVR | R* > 0 under k_arb h=1 / h=300 |
+|---|---|---|---|---|---|---|---|
+| blue-chip | 1% | 8 | 5 | 0.0813 | 0.0964 | 0.6855 | 2 / 2 |
+| blue-chip | 5% | 8 | 7 | 0.1506 | 0.0988 | 0.5977 | 0 / 2 |
+| long-tail | 1% | 11 | 2 | -0.3953 | -0.0791 | 1.0193 | 1 / 5 |
+| long-tail | 5% | 11 | 2 | -0.696 | -0.5072 | 1.3204 | 1 / 4 |
+| mid-cap | 1% | 4 | 0 | -0.3589 | -0.2936 | 0.9056 | 0 / 1 |
+| mid-cap | 5% | 4 | 0 | -0.4729 | -0.407 | 1.0117 | 0 / 0 |
+
+The headline horizon is h=25 (pre-registered, D0.5). The last column shows the same bands under k_arb at h=1 and h=300. No horizon makes R* positive on a majority of mid-cap or long-tail pools. The blue-chip positive count is itself fragile: it holds at h=25 but falls to 0–2 of 8 at h=1 and h=300 (D0.8).
+
+| Pool | class | ±x | k_arb | k source | in band | LVR_band USD | fees_band USD | fees/LVR | R* USD | R*/LVR |
+|---|---|---|---|---|---|---|---|---|---|---|
+| DAI/WETH 0.3% | blue-chip | 1% | 0.6372 | pool | 0.6382 | 1,985,361 | 1,410,130 | 0.7103 | -145,058 | -0.0731 |
+| DAI/WETH 0.3% | blue-chip | 5% | 0.6372 | pool | 0.9703 | 1,112,863 | 675,101 | 0.6066 | 34,015 | 0.0306 |
+| WBTC/USDC 0.3% | blue-chip | 1% | 0.7281 | pool | 0.6972 | 867,701 | 1,192,452 | 1.3743 | -560,679 | -0.6462 |
+| WBTC/USDC 0.3% | blue-chip | 5% | 0.7281 | pool | 0.9814 | 339,599 | 544,513 | 1.6034 | -297,250 | -0.8753 |
+| WBTC/WETH 0.05% | blue-chip | 1% | 0.6463 | pool | 0.8625 | 2,464,971 | 636,536 | 0.2582 | 956,574 | 0.3881 |
+| WBTC/WETH 0.05% | blue-chip | 5% | 0.6463 | pool | 0.9995 | 537,824 | 182,514 | 0.3394 | 165,081 | 0.3069 |
+| WBTC/WETH 0.3% | blue-chip | 1% | 0.6702 | pool | 0.8583 | 2,295,213 | 672,896 | 0.2932 | 865,355 | 0.377 |
+| WBTC/WETH 0.3% | blue-chip | 5% | 0.6702 | pool | 0.9995 | 496,751 | 204,569 | 0.4118 | 128,354 | 0.2584 |
+| WETH/USDC 0.05% | blue-chip | 1% | 0.8434 | pool | 0.6433 | 2,234,555 | 1,576,024 | 0.7053 | 308,599 | 0.1381 |
+| WETH/USDC 0.05% | blue-chip | 5% | 0.8434 | pool | 0.9656 | 1,101,034 | 689,333 | 0.6261 | 239,280 | 0.2173 |
+| WETH/USDC 0.3% | blue-chip | 1% | 0.7583 | pool | 0.634 | 2,060,774 | 1,372,066 | 0.6658 | 190,619 | 0.0925 |
+| WETH/USDC 0.3% | blue-chip | 5% | 0.7583 | pool | 0.9693 | 1,079,029 | 655,957 | 0.6079 | 162,271 | 0.1504 |
+| WETH/USDT 0.05% | blue-chip | 1% | 0.6579 | pool | 0.6442 | 2,607,599 | 1,867,779 | 0.7163 | -152,240 | -0.0584 |
+| WETH/USDT 0.05% | blue-chip | 5% | 0.6579 | pool | 0.9656 | 1,395,258 | 821,523 | 0.5888 | 96,417 | 0.0691 |
+| WETH/USDT 0.3% | blue-chip | 1% | 0.6644 | pool | 0.6359 | 2,421,725 | 1,439,553 | 0.5944 | 169,441 | 0.07 |
+| WETH/USDT 0.3% | blue-chip | 5% | 0.6644 | pool | 0.9703 | 1,360,049 | 698,540 | 0.5136 | 205,077 | 0.1508 |
+| 1INCH/WETH 1% | long-tail | 1% | 0.697 | class median (pool declined) | 0.7808 | 72,556 | 272,071 | 3.7498 | -221,499 | -3.0528 |
+| 1INCH/WETH 1% | long-tail | 5% | 0.697 | class median (pool declined) | 1.0 | 23,480 | 170,397 | 7.2571 | -154,032 | -6.5601 |
+| APE/WETH 0.3% | long-tail | 1% | 0.697 | class median (pool declined) | 0.4654 | 214,800 | 203,176 | 0.9459 | -53,461 | -0.2489 |
+| APE/WETH 0.3% | long-tail | 5% | 0.697 | class median (pool declined) | 0.9517 | 95,167 | 125,654 | 1.3204 | -59,323 | -0.6234 |
+| COMP/USDC 1% | long-tail | 1% | 0.7212 | pool | 0.7557 | 1,356,926 | 142,665 | 0.1051 | 835,951 | 0.6161 |
+| COMP/USDC 1% | long-tail | 5% | 0.7212 | pool | 0.9698 | 297,368 | 64,296 | 0.2162 | 150,166 | 0.505 |
+| CRV/WETH 1% | long-tail | 1% | 0.6729 | pool | 0.4682 | 153,085 | 197,151 | 1.2878 | -94,140 | -0.6149 |
+| CRV/WETH 1% | long-tail | 5% | 0.6729 | pool | 0.915 | 79,725 | 112,608 | 1.4125 | -58,961 | -0.7396 |
+| ENS/WETH 0.3% | long-tail | 1% | 0.8426 | pool | 0.5578 | 144,791 | 179,232 | 1.2379 | -57,231 | -0.3953 |
+| ENS/WETH 0.3% | long-tail | 5% | 0.8426 | pool | 0.9786 | 61,533 | 94,673 | 1.5386 | -42,825 | -0.696 |
+| LDO/WETH 0.3% | long-tail | 1% | 0.7506 | pool | 0.4403 | 209,655 | 190,083 | 0.9066 | -32,716 | -0.156 |
+| LDO/WETH 0.3% | long-tail | 5% | 0.7506 | pool | 0.935 | 116,028 | 110,640 | 0.9536 | -23,549 | -0.203 |
+| MKR/WETH 0.3% | long-tail | 1% | 0.617 | pool | 0.5035 | 149,526 | 71,996 | 0.4815 | 20,261 | 0.1355 |
+| MKR/WETH 0.3% | long-tail | 5% | 0.617 | pool | 0.9136 | 68,881 | 39,844 | 0.5784 | 2,656 | 0.0386 |
+| ONDO/WETH 0.3% | long-tail | 1% | 0.1327 | pool | 0.4886 | 279,178 | 284,553 | 1.0193 | -247,506 | -0.8866 |
+| ONDO/WETH 0.3% | long-tail | 5% | 0.1327 | pool | 0.9494 | 127,316 | 162,805 | 1.2787 | -145,910 | -1.146 |
+| PEPE/WETH 0.3% | long-tail | 1% | 0.697 | class median (pool declined) | 0.4556 | 276,262 | 314,121 | 1.137 | -121,566 | -0.44 |
+| PEPE/WETH 0.3% | long-tail | 5% | 0.697 | class median (pool declined) | 0.9136 | 123,134 | 184,667 | 1.4997 | -98,842 | -0.8027 |
+| SHIB/WETH 1% | long-tail | 1% | 0.4203 | pool | 0.7162 | 76,066 | 286,356 | 3.7646 | -254,385 | -3.3443 |
+| SHIB/WETH 1% | long-tail | 5% | 0.4203 | pool | 0.9986 | 25,231 | 147,397 | 5.842 | -136,793 | -5.4217 |
+| SPX/WETH 0.3% | long-tail | 1% | 0.7943 | pool | 0.3948 | 278,757 | 249,095 | 0.8936 | -27,678 | -0.0993 |
+| SPX/WETH 0.3% | long-tail | 5% | 0.7943 | pool | 0.9196 | 160,408 | 157,566 | 0.9823 | -30,154 | -0.188 |
+| AAVE/WETH 0.3% | mid-cap | 1% | 0.529 | pool | 0.516 | 204,593 | 162,812 | 0.7958 | -54,582 | -0.2668 |
+| AAVE/WETH 0.3% | mid-cap | 5% | 0.529 | pool | 0.9587 | 84,467 | 80,508 | 0.9531 | -35,825 | -0.4241 |
+| ENA/WETH 0.3% | mid-cap | 1% | 0.7833 | pool | 0.3725 | 459,593 | 432,905 | 0.9419 | -72,906 | -0.1586 |
+| ENA/WETH 0.3% | mid-cap | 5% | 0.7833 | pool | 0.8686 | 234,696 | 256,383 | 1.0924 | -72,545 | -0.3091 |
+| LINK/WETH 0.3% | mid-cap | 1% | 0.5393 | pool | 0.6767 | 99,331 | 104,048 | 1.0475 | -50,479 | -0.5082 |
+| LINK/WETH 0.3% | mid-cap | 5% | 0.5393 | pool | 0.974 | 37,959 | 40,629 | 1.0703 | -20,157 | -0.531 |
+| UNI/WETH 0.3% | mid-cap | 1% | 0.4185 | pool | 0.3939 | 294,018 | 255,605 | 0.8694 | -132,558 | -0.4509 |
+| UNI/WETH 0.3% | mid-cap | 5% | 0.4185 | pool | 0.9169 | 146,264 | 137,538 | 0.9403 | -76,327 | -0.5218 |
+
 ## 0.3 Saturation — naive depth / true depth
 
 2070 pool-blocks (one per pool per day), both sides.

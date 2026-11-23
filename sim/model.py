@@ -188,6 +188,41 @@ def main():
            | {"fees_over_lvr": r(g.fees_over_lvr.median()), "n_pools": int(len(g))}
         for c, g in kp.groupby("class")}}
 
+    # ---- band economics (D0.8): does a mandate band have a positive reserve?
+    band = pd.read_csv(DATA / "phase0_band_economics.csv", dtype={"x_pct": str})
+    kp_idx = {p["pool"]: p for p in per_pool}
+    rev = {v: k for k, v in name.items()}
+    bres = {"per_pool": [], "by_class": {}}
+    for (pool, x), g in band.groupby(["pool", "x_pct"]):
+        c = cls[pool]
+        own = kp_idx[name[pool]]["k_arb_h25"]
+        k = own if own is not None else res["k_arb"]["median_by_class"][c]["h25"]
+        lvr, fees = g.lvr_band_usd.sum(), g.fees_band_usd.sum()
+        rstar = k * lvr - fees
+        row = {"pool": name[pool], "class": c, "x_pct": x, "k_arb_h25": k,
+               "k_source": "pool" if own is not None else "class median (pool declined)",
+               "notional_usd": int(g.notional_usd.iloc[0]),
+               "in_band_share": r(g.in_band_samples.sum() / g.samples.sum()),
+               "lvr_band_usd": r(lvr, 0), "fees_band_usd": r(fees, 0),
+               "fees_over_lvr": r(fees / lvr), "rstar_usd": r(rstar, 0), "rstar_over_lvr": r(rstar / lvr)}
+        for h in HORIZONS:  # sensitivity: the same band under k_arb at every measured horizon
+            oh = kp_idx[name[pool]][f"k_arb_h{h}"]
+            kh = oh if oh is not None else res["k_arb"]["median_by_class"][c][f"h{h}"]
+            row[f"rstar_over_lvr_h{h}"] = r(kh - fees / lvr)
+        bres["per_pool"].append(row)
+    bres["per_pool"].sort(key=lambda q: (q["class"], q["pool"], q["x_pct"]))
+    bp = pd.DataFrame(bres["per_pool"])
+    for (c, x), g in bp.groupby(["class", "x_pct"]):
+        bres["by_class"].setdefault(c, {})[x] = {
+            "pools": int(len(g)), "pools_rstar_positive": int((g.rstar_usd > 0).sum()),
+            "median_rstar_over_lvr": r(g.rstar_over_lvr.median()),
+            "aggregate_rstar_over_lvr": r(g.rstar_usd.sum() / g.lvr_band_usd.sum()),
+            "median_fees_over_lvr": r(g.fees_over_lvr.median()),
+            **{f"pools_rstar_positive_h{h}": int((g[f"rstar_over_lvr_h{h}"] > 0).sum()) for h in HORIZONS}}
+    bres["pools_rstar_positive"] = {x: int((bp[bp.x_pct == x].rstar_usd > 0).sum()) for x in ("1", "5")}
+    bres["pools"] = int(bp.pool.nunique())
+    res["band_economics"] = bres
+
     # ---- 0.3 saturation
     s = sat.dropna(subset=["ratio"])
     satres = {"pool_blocks": int(sat.groupby(["pool", "block"]).ngroups), "by_x": {}, "by_class_x10": {}}
@@ -263,6 +298,28 @@ def render(res: dict) -> str:
     for p in res["k_arb"]["per_pool"]:
         L.append(f"| {p['pool']} | {p['class']} | {fmt(p, 1)} | {fmt(p, 25)} | {fmt(p, 300)} | {p['fees_over_lvr']} | "
                  f"{p['lvr_usd']:,.0f} | {p['fees_usd']:,.0f} |")
+    be = res["band_economics"]
+    L += ["", "## Band economics — does a mandate band have a positive reserve?", "",
+          "Synthetic mandate band at ±x around spot, re-centred daily, sized so the band alone supplies notional D of depth "
+          "to +x (D0.8). R*_band = k_arb(h=25)·LVR_band − fees_band over the window. Price-taking: the sign does not "
+          "depend on D.", "",
+          f"**Pools with R*_band > 0: {be['pools_rstar_positive']['1']} of {be['pools']} at ±1%, "
+          f"{be['pools_rstar_positive']['5']} of {be['pools']} at ±5%.**", "",
+          "| Class | ±x | pools | R* > 0 (h=25) | median R*/LVR | aggregate R*/LVR | median fees/LVR | R* > 0 under k_arb h=1 / h=300 |",
+          "|---|---|---|---|---|---|---|---|"]
+    for c, xs in be["by_class"].items():
+        for x, v in xs.items():
+            L.append(f"| {c} | {x}% | {v['pools']} | {v['pools_rstar_positive']} | {v['median_rstar_over_lvr']} | "
+                     f"{v['aggregate_rstar_over_lvr']} | {v['median_fees_over_lvr']} | "
+                     f"{v['pools_rstar_positive_h1']} / {v['pools_rstar_positive_h300']} |")
+    L += ["", "The headline horizon is h=25 (pre-registered, D0.5). The last column shows the same bands under k_arb at "
+          "h=1 and h=300. No horizon makes R* positive on a majority of mid-cap or long-tail pools. The blue-chip positive count "
+          "is itself fragile: it holds at h=25 but falls to 0–2 of 8 at h=1 and h=300 (D0.8)."]
+    L += ["", "| Pool | class | ±x | k_arb | k source | in band | LVR_band USD | fees_band USD | fees/LVR | R* USD | R*/LVR |",
+          "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for p in be["per_pool"]:
+        L.append(f"| {p['pool']} | {p['class']} | {p['x_pct']}% | {p['k_arb_h25']} | {p['k_source']} | {p['in_band_share']} | "
+                 f"{p['lvr_band_usd']:,.0f} | {p['fees_band_usd']:,.0f} | {p['fees_over_lvr']} | {p['rstar_usd']:,.0f} | {p['rstar_over_lvr']} |")
     s = res["saturation"]
     L += ["", "## 0.3 Saturation — naive depth / true depth", "",
           f"{s['pool_blocks']} pool-blocks (one per pool per day), both sides.", "",

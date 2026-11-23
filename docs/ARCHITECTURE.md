@@ -136,3 +136,37 @@ The first CI run of `model.py` drifted on the **mid-cap** wild-cluster bounds on
 - **Decision:** below 10 clusters no cluster-robust CI is published. Both CRV1-t and WCR are declined (rule 1). Blue-chip (8 pools) and mid-cap (4 pools) now report the point estimate with "CI declined". A relative tie tolerance of 1e-9 is added to the bootstrap comparison so float noise cannot decide ties in the subsets that remain.
 - **Rejected:** enumerating all 6^G weight vectors. That makes the p-value exact but leaves it a coarse step function, and a CI from four clusters is not informative however it is computed.
 - **Unchanged:** the branch decision reads non-blue-chip (G = 15). Its bounds were identical on both machines, and the branch is still 3a.
+
+## D0.8 — A mandate band has no positive reserve on the pools KEEL targets (2026-11-23)
+
+**Question.** Does a depth mandate band have a positive reserve `R*_band = k_arb · LVR_band − fees_band` anywhere? Pool-level fees/LVR, which is blue-chip 0.58, mid-cap 1.15 and long-tail 2.10 (verified from `phase0_pool_days.csv`), is only a proxy, so the band was replayed directly (`sim/band_economics.py`).
+
+**Band model.**
+- The band sits at ±x around spot, re-centred at the first hourly sample of each UTC day, as a curator reshaping the mandate position would.
+- It is sized so that it alone supplies notional D of depth to +x: `L = D / (√p₀·(√(1+x) − 1))`. D is **$1M for blue-chip pools and $100k for the rest**.
+- It is price-taking: the band is assumed not to alter the observed price path.
+- LVR accrues at hourly samples while spot is inside the band.
+- Fees use v3's per-position identity, `f/(1−f)·L·Δ√p` (token0 leg: `Δ(1/√p)`), over the part of each swap's path inside the band. This matches the exact integer walk to a relative 3.4e-12 over 400 random bands, and the check fails on a planted `f` in place of `f/(1−f)` (`sim/test_band_fee_identity.py`).
+- Both legs are linear in L, so **the sign of R\* does not depend on D**. D sets only the dollar magnitudes.
+- `k_arb` is the pool's own value at h=25 where measured, else the class median.
+
+**Result** (`data/phase0_results.md`, "Band economics"):
+
+| Class | Pools R* > 0 at ±1% | at ±5% | Median R*/LVR (±1% / ±5%) |
+|---|---|---|---|
+| blue-chip | 5 of 8 | 7 of 8 | +0.08 / +0.15 |
+| mid-cap | 0 of 4 | 0 of 4 | −0.36 / −0.47 |
+| long-tail | 2 of 11 | 2 of 11 | −0.40 / −0.70 |
+
+- **Long-tail exceptions:** the two positive long-tail pools are COMP/USDC 1% and MKR/WETH 0.3%. These are stale books where the price moves with little fee-paying flow.
+- **Horizon sensitivity:** under `k_arb` at h=300 long-tail rises to 4–5 of 11 and mid-cap to 1 of 4, still a minority. Blue-chip's positive count is fragile, falling to 0–2 of 8 at both h=1 and h=300.
+
+**What it means, stated plainly.** On this window, on the mid-cap and long-tail pools a depth mandate is meant for, a concentrated band at ±1% or ±5% earned more in fees than the adverse selection it bore, without being paid. A retainer priced from `R*` clears at **zero** there, so the auction's reserve has nothing to sell. The thesis "the issuer pays a retainer for depth" has no measured price in the target market. Where R\* is positive, on blue-chip, it is about 10% of LVR, holds only at one horizon, and sits in the pools least in need of a mandate.
+
+**Two caveats that cut in opposite directions:**
+1. The D0.6(4) circularity: `k_arb` against the pool's own mid *understates* external LVR on stale books, so true R\* there is higher than measured. The marginal pools (SPX −0.10, LDO −0.16, ENA −0.16 at ±1%) would turn positive if their true `k_arb` were 0.10–0.16 higher. This is the one direction in which the finding could be wrong, and it would take a CEX reference series to settle.
+2. Price-taking overstates a large band's fees on a thin book, because real swaps would move a deeper book less. That makes R\* on thin pools *lower* than measured.
+
+**What this does not say.** It does not say no one would pay for depth. It says a profitable LP is already being paid for *supplying* it. What a profitable LP will not do is **promise** to be there during a drawdown, and nothing today lets them make that promise credibly. If KEEL has a product on these numbers, it is enforceable *commitment*: a small retainer, with the bond doing the work. That is a redesign question, so it is **recorded here and deliberately not acted on in this session**.
+
+**Decision.** Phase 1 does not start until this is resolved with the project owner. Phase 3 (funding) and Phase 4 (auction) are on hold, because both assume a positive retainer.
