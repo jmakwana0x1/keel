@@ -28,6 +28,17 @@ The 95% CI the branch reads is the wider of CRV1-t and the wild cluster bootstra
 
 Caveat: association, not causal: depth and volume are jointly determined.
 
+### Sensitivity: ε discounted for reverse causality (D0.10)
+
+The non-blue-chip ±1% estimate and its CI are multiplied by a discount d. Each cell gives whether the discounted **lower bound** / **point estimate** clears the self-funding break-even ε* = (s + φ)/(1 − φ).
+
+| d | ε | CI | branch | s=0.05 φ=0.1 (ε*=0.167) | s=0.05 φ=0.25 (ε*=0.400) | s=0.05 φ=0.5 (ε*=1.100) | s=0.1 φ=0.1 (ε*=0.222) | s=0.1 φ=0.25 (ε*=0.467) | s=0.1 φ=0.5 (ε*=1.200) | s=0.2 φ=0.1 (ε*=0.333) | s=0.2 φ=0.25 (ε*=0.600) | s=0.2 φ=0.5 (ε*=1.400) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1.0 | 0.9106 | [0.807, 1.0972] | 3a-skim | yes / yes | yes / yes | no / no | yes / yes | yes / yes | no / no | yes / yes | yes / yes | no / no |
+| 0.5 | 0.4553 | [0.4035, 0.5486] | 3a-skim-low-share | yes / yes | yes / yes | no / no | yes / yes | no / no | no / no | yes / yes | no / no | no / no |
+| 0.33 | 0.3005 | [0.2663, 0.3621] | 3b-mev-funded | yes / yes | no / no | no / no | yes / yes | no / no | no / no | no / no | no / no | no / no |
+| 0.25 | 0.2276 | [0.2018, 0.2743] | 3b-mev-funded | yes / yes | no / no | no / no | no / yes | no / no | no / no | no / no | no / no | no / no |
+
 ## 0.2 k_arb — realised markout (ex-fees) / theoretical LVR
 
 Caveat: k_arb is measured against the pool's own future mid, and σ comes from the same pool-price series. It is the fraction of pool-price variance LPs trade through at a loss, not the fraction of external (CEX) LVR realised. It understates external LVR wherever the pool price lags the reference market, which is most likely on stale long-tail books. See docs/ARCHITECTURE.md D0.6(4).
@@ -134,6 +145,10 @@ The headline horizon is h=25 (pre-registered, D0.5). The last column shows the s
 
 ## 0.3 Saturation — naive depth / true depth
 
+**Naive depth is an excellent point estimate and a worthless guarantee.**
+
+At the median the naive figure is right: the ratio is about 1 at every width, and exactly 1.000 at every width on long-tail pools. A contract that pays on depth is not priced on the median. It is priced on the tail, and in the tail the naive figure fails in **both** directions: it overstates by more than 1.5× in a material share of books, without bound, and it *understates* in roughly a third of them. Neither failure is visible from the naive number itself.
+
 2070 pool-blocks (one per pool per day), both sides.
 
 | ±x | p10 | median | p75 | p90 | max | share < 1 | share > 1.5 | share > 2 | n |
@@ -144,12 +159,28 @@ The headline horizon is h=25 (pre-registered, D0.5). The last column shows the s
 | 5% | 0.9028 | 1.0007 | 1.0613 | 1.2033 | 4353102322.3101 | 0.3535 | 0.0318 | 0.0126 | 4059 |
 | 10% | 0.8374 | 1.0157 | 1.1655 | 1.471 | 8603735626.9438 | 0.3358 | 0.0931 | 0.0276 | 4059 |
 
-Median ratio by class:
+By class:
 
-| Class | ±0.5% | ±1% | ±2% | ±5% | ±10% |
-|---|---|---|---|---|---|
-| blue-chip | 1.0 | 1.0006 | 1.0058 | 1.0355 | 1.105 |
-| mid-cap | 1.0 | 1.0 | 1.0001 | 1.0081 | 1.039 |
-| long-tail | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
+| Class | ±x | median | p90 | p99 | max | share < 1 (understates) | share > 1.5 | share > 2 | n |
+|---|---|---|---|---|---|---|---|---|---|
+| blue-chip | 0.5% | 1.0 | 1.0187 | 1.1505 | 5.3446 | 0.4097 | 0.0028 | 0.0028 | 1440 |
+| blue-chip | 1% | 1.0006 | 1.0459 | 1.2441 | 6.3308 | 0.4361 | 0.0056 | 0.0028 | 1440 |
+| blue-chip | 2% | 1.0058 | 1.1067 | 1.4212 | 6.9991 | 0.3965 | 0.009 | 0.0042 | 1440 |
+| blue-chip | 5% | 1.0355 | 1.2959 | 1.8561 | 7.932 | 0.3257 | 0.034 | 0.0076 | 1440 |
+| blue-chip | 10% | 1.105 | 1.6042 | 2.4311 | 11.0782 | 0.2924 | 0.1562 | 0.0333 | 1440 |
+| mid-cap | 0.5% | 1.0 | 1.0062 | 1.2334 | 3.8789 | 0.3653 | 0.0042 | 0.0042 | 720 |
+| mid-cap | 1% | 1.0 | 1.02 | 1.2916 | 4.902 | 0.4611 | 0.0083 | 0.0069 | 720 |
+| mid-cap | 2% | 1.0001 | 1.0612 | 1.4249 | 8.5372 | 0.4764 | 0.0097 | 0.0069 | 720 |
+| mid-cap | 5% | 1.0081 | 1.1781 | 1.7642 | 16.7063 | 0.4167 | 0.0264 | 0.0083 | 720 |
+| mid-cap | 10% | 1.039 | 1.3554 | 2.507 | 24.3584 | 0.3472 | 0.0625 | 0.0167 | 720 |
+| long-tail | 0.5% | 1.0 | 1.0 | 1.0909 | 1634789959.3826 | 0.1199 | 0.0058 | 0.0016 | 1893 |
+| long-tail | 1% | 1.0 | 1.0025 | 1.3028 | 1758356013.0648 | 0.1791 | 0.0085 | 0.0048 | 1893 |
+| long-tail | 2% | 1.0 | 1.0169 | 1.8879 | 1824174886.2184 | 0.2594 | 0.0148 | 0.0085 | 1893 |
+| long-tail | 5% | 1.0 | 1.0882 | 2.5297 | 4353102322.3101 | 0.3507 | 0.0321 | 0.0179 | 1899 |
+| long-tail | 10% | 1.0 | 1.241 | 3.9145 | 8603735626.9438 | 0.3644 | 0.0569 | 0.0274 | 1899 |
+
+Zero-depth books: 423 rows have true depth exactly 0, and 0 of those have positive naive depth: true depth is 0 only when the whole path, spot included, has no liquidity, so naive is 0 as well. The reverse, naive 0 with true depth positive (empty at spot, liquidity beyond), occurs in 17 rows. The 30 walks QuoterV2 declined in the differential are zero-liquidity paths of the first kind.
 
 Depth growth from ±1% to ±10%: naive median ×9.7861, true median ×9.6227 (true p25 ×8.4379, p10 ×6.872).
+
+The pre-measurement prediction that the gap would be largest on long-tail books is falsified. See docs/ARCHITECTURE.md D0.9.

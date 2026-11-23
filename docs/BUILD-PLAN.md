@@ -285,6 +285,8 @@ Live on screen: curator accepts, block proved compliant, price pushed past the b
 2. **So measure it properly.** Replay the swap that moves the price. Saturation table. *Largest block of airtime: this is the novelty.*
 3. **Now you can sell it.** Someone commits, gets paid per block it holds, is slashed when it does not.
 
+> **Amended by Phase 0 (D0.7–D0.10).** Beat 1 must not claim naive depth is wrong on average: it is right at the median and wrong in the tail, in both directions. Beat 2's table is the tail table, not a median. Beat 3 is on hold: D0.8 found no positive retainer in the target market, so "paid per block" has no measured price there.
+
 Four clauses, one each, no mechanism explained: the auction, the funding, the bounty, the bond.
 
 Then the mutation kill, forty seconds: delete one manifest line, three layers fail, restore.

@@ -167,6 +167,21 @@ def main():
     res["epsilon_branch"] = {"on_depth_1pct": decision, "on_depth_5pct": decision_5,
                              "caveat": "association, not causal: depth and volume are jointly determined"}
 
+    # ---- epsilon sensitivity to a causal discount (D0.10). eps_breakeven = (s + phi) / (1 - phi), as specified
+    e1 = eps["non-blue-chip"]["depth_1pct"]
+    sens = []
+    for disc in EPS_DISCOUNTS:
+        de = {"eps": r(e1["eps"] * disc), "ci95": [r(e1["ci95"][0] * disc), r(e1["ci95"][1] * disc)]}
+        cells = {}
+        for sk in SKIM_GRID:
+            for ph in SHARE_GRID:
+                be = (sk + ph) / (1 - ph)
+                cells[f"s={sk},phi={ph}"] = {"breakeven": r(be), "lower_bound_clears": bool(de["ci95"][0] > be),
+                                             "point_clears": bool(de["eps"] > be)}
+        sens.append({"discount": disc, "eps": de["eps"], "ci95": de["ci95"], "branch": branch(de)["branch"],
+                     "cells": cells})
+    res["epsilon_sensitivity"] = sens
+
     # ---- 0.2 k_arb, with a standard error from the daily markout series; declined when SE > KARB_MAX_SE
     per_pool = []
     for pool, g in days.groupby("pool"):
@@ -237,7 +252,13 @@ def main():
         satres["by_class_x10"][c] = {}
         for lab in XLAB:
             v = s[(s.cls == c) & (s.x_pct.astype(str) == lab)].ratio
-            satres["by_class_x10"][c][lab] = {"median": r(v.median()), "p90": r(v.quantile(.9)), "n": int(len(v))}
+            satres["by_class_x10"][c][lab] = {"median": r(v.median()), "p90": r(v.quantile(.9)), "p99": r(v.quantile(.99)),
+                                              "max": r(v.max()), "share_ratio_lt_1": r((v < 1).mean()),
+                                              "share_ratio_gt_1_5": r((v > 1.5).mean()),
+                                              "share_ratio_gt_2": r((v > 2).mean()), "n": int(len(v))}
+    tz = sat.true_raw.astype(str) == "0"
+    satres["zero_depth_rows"] = {"true_zero": int(tz.sum()), "true_zero_naive_positive": int((tz & (sat.naive_usd > 0)).sum()),
+                                 "naive_zero_true_positive": int(((sat.naive_usd == 0) & ~tz).sum())}
     # growth of true vs naive from 1% to 10%: naive grows ~linearly (x10); does true depth?
     piv = sat.pivot_table(index=["pool", "block", "side"], columns="x_pct", values=["true_usd", "naive_usd"])
     gt = (piv["true_usd"]["10"] / piv["true_usd"]["1"]).replace([np.inf], np.nan).dropna()
@@ -251,6 +272,9 @@ def main():
     print(render(res))
 
 
+EPS_DISCOUNTS = [1.0, 0.5, 0.33, 0.25]
+SKIM_GRID = [0.05, 0.10, 0.20]
+SHARE_GRID = [0.10, 0.25, 0.50]
 KARB_MAX_SE = 0.5
 KARB_DECLINE_RULE = ("POST-HOC (chosen after seeing ratios like 327 and -465 on pools with < $300 of 90-day LVR): a pool's "
                      "k_arb is declined when its standard error, sd(daily markout)·sqrt(days)/LVR, exceeds 0.5. A declined "
@@ -286,6 +310,16 @@ def render(res: dict) -> str:
     br = res["epsilon_branch"]
     L += ["", f"**Branch (rule D0.5 as amended by D0.6, non-blue-chip, ±1%): {br['on_depth_1pct']['branch']}**. "
           f"{br['on_depth_1pct']['reason']}. On ±5%: {br['on_depth_5pct']['branch']}.", "", f"Caveat: {br['caveat']}.", "",
+          "### Sensitivity: ε discounted for reverse causality (D0.10)", "",
+          "The non-blue-chip ±1% estimate and its CI are multiplied by a discount d. Each cell gives whether the "
+          "discounted **lower bound** / **point estimate** clears the self-funding break-even ε* = (s + φ)/(1 − φ).", "",
+          "| d | ε | CI | branch | " + " | ".join(f"s={sk} φ={ph} (ε*={(sk + ph) / (1 - ph):.3f})" for sk in SKIM_GRID for ph in SHARE_GRID) + " |",
+          "|---|---|---|---|" + "---|" * (len(SKIM_GRID) * len(SHARE_GRID))]
+    yn = lambda b: "yes" if b else "no"
+    for row in res["epsilon_sensitivity"]:
+        L.append(f"| {row['discount']} | {row['eps']} | {row['ci95']} | {row['branch']} | " + " | ".join(
+            f"{yn(c['lower_bound_clears'])} / {yn(c['point_clears'])}" for c in row["cells"].values()) + " |")
+    L += ["",
           "## 0.2 k_arb — realised markout (ex-fees) / theoretical LVR", "", f"Caveat: {res['k_arb']['caveat']}", "",
           f"Decline rule: {res['k_arb']['decline_rule']}", "",
           "| Class | pools | k_arb h=1 | h=25 | h=300 | measured pools (h1/h25/h300) | fees / LVR |", "|---|---|---|---|---|---|---|"]
@@ -322,16 +356,36 @@ def render(res: dict) -> str:
                  f"{p['lvr_band_usd']:,.0f} | {p['fees_band_usd']:,.0f} | {p['fees_over_lvr']} | {p['rstar_usd']:,.0f} | {p['rstar_over_lvr']} |")
     s = res["saturation"]
     L += ["", "## 0.3 Saturation — naive depth / true depth", "",
+          "**Naive depth is an excellent point estimate and a worthless guarantee.**", "",
+          "At the median the naive figure is right: the ratio is about 1 at every width, and exactly 1.000 at every width "
+          "on long-tail pools. A contract that pays on depth is not priced on the median. It is priced on the tail, and in "
+          "the tail the naive figure fails in **both** directions: it overstates by more than 1.5× in a material share of "
+          "books, without bound, and it *understates* in roughly a third of them. Neither failure is visible from the "
+          "naive number itself.", "",
           f"{s['pool_blocks']} pool-blocks (one per pool per day), both sides.", "",
           "| ±x | p10 | median | p75 | p90 | max | share < 1 | share > 1.5 | share > 2 | n |", "|---|---|---|---|---|---|---|---|---|---|"]
     for lab, v in s["by_x"].items():
-        L.append(f"| {lab}% | {v['p10']} | {v['median']} | {v['p75']} | {v['p90']} | {v['max']} | {v['share_ratio_lt_1']} | {v['share_ratio_gt_1_5']} | {v['share_ratio_gt_2']} | {v['n']} |")
-    L += ["", "Median ratio by class:", "", "| Class | " + " | ".join(f"±{x}%" for x in XLAB) + " |", "|---|" + "---|" * len(XLAB)]
-    for c, v in s["by_class_x10"].items():
-        L.append(f"| {c} | " + " | ".join(str(v[x]["median"]) for x in XLAB) + " |")
+        L.append(f"| {lab}% | {v['p10']} | {v['median']} | {v['p75']} | {v['p90']} | {v['max']} | {v['share_ratio_lt_1']} | "
+                 f"{v['share_ratio_gt_1_5']} | {v['share_ratio_gt_2']} | {v['n']} |")
+    L += ["", "By class:", "",
+          "| Class | ±x | median | p90 | p99 | max | share < 1 (understates) | share > 1.5 | share > 2 | n |",
+          "|---|---|---|---|---|---|---|---|---|---|"]
+    for c, xs in s["by_class_x10"].items():
+        for lab in XLAB:
+            v = xs[lab]
+            L.append(f"| {c} | {lab}% | {v['median']} | {v['p90']} | {v['p99']} | {v['max']} | {v['share_ratio_lt_1']} | "
+                     f"{v['share_ratio_gt_1_5']} | {v['share_ratio_gt_2']} | {v['n']} |")
+    z = s["zero_depth_rows"]
     g = s["growth_1_to_10pct"]
-    L += ["", f"Depth growth from ±1% to ±10%: naive median ×{g['naive_median']}, true median ×{g['true_median']} "
-          f"(true p25 ×{g['true_p25']}, p10 ×{g['true_p10']})."]
+    L += ["", f"Zero-depth books: {z['true_zero']} rows have true depth exactly 0, and "
+          f"{z['true_zero_naive_positive']} of those have positive naive depth: true depth is 0 only when the whole path, spot included, has no liquidity, so naive is "
+          f"0 as well. The reverse, naive 0 with true depth positive (empty at spot, liquidity beyond), occurs in "
+          f"{z['naive_zero_true_positive']} rows. The 30 walks QuoterV2 declined in the differential are zero-liquidity "
+          "paths of the first kind.", "",
+          f"Depth growth from ±1% to ±10%: naive median ×{g['naive_median']}, true median ×{g['true_median']} "
+          f"(true p25 ×{g['true_p25']}, p10 ×{g['true_p10']}).", "",
+          "The pre-measurement prediction that the gap would be largest on long-tail books is falsified. See "
+          "docs/ARCHITECTURE.md D0.9."]
     return "\n".join(L)
 
 

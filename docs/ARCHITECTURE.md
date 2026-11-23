@@ -170,3 +170,51 @@ The first CI run of `model.py` drifted on the **mid-cap** wild-cluster bounds on
 **What this does not say.** It does not say no one would pay for depth. It says a profitable LP is already being paid for *supplying* it. What a profitable LP will not do is **promise** to be there during a drawdown, and nothing today lets them make that promise credibly. If KEEL has a product on these numbers, it is enforceable *commitment*: a small retainer, with the bond doing the work. That is a redesign question, so it is **recorded here and deliberately not acted on in this session**.
 
 **Decision.** Phase 1 does not start until this is resolved with the project owner. Phase 3 (funding) and Phase 4 (auction) are on hold, because both assume a positive retainer.
+
+## D0.9 — A falsified prediction: the gap is not largest on long-tail books (2026-11-23)
+
+**The prediction (pre-measurement, made by the project owner from a synthetic model).** The gap between naive and true depth would be largest on long-tail books, because long-tail books are lumpy.
+
+**The measurement.** The opposite.
+
+| Class | Median ratio at ±10% |
+|---|---|
+| blue-chip | **1.105** |
+| mid-cap | 1.039 |
+| long-tail | **1.000**, at every width from ±0.5% to ±10% |
+
+Blue-chip also has the heaviest body of the tail: at ±10%, 15.6% of its books are above 1.5 and p90 is 1.604.
+
+**Why the model was wrong.** The synthetic generator built long-tail books as sparse **and lumpy**. Real long-tail books are sparse **and wide**. Their liquidity comes mostly from full-range or near-full-range LPs, so active liquidity really is constant across ±10% and the naive formula `L·Δ√p` is exact. It is the concentrated blue-chip books, built from many narrow positions stacked near spot, where liquidity falls off with distance and naive depth overstates.
+
+**What survives on long-tail is the extreme tail, not the body:** p99 at ±10% is 3.914, and the maximum is 8.6 × 10⁹ on a two-tick book.
+
+**Kept as written, next to its correction.** The prediction is not deleted or reworded. It stays here because a project that keeps its falsified predictions in view earns belief for the ones that survive.
+
+**Correction to a related claim.** It was suggested that zero-liquidity paths, the 30 walks QuoterV2 declined, are a case of "true depth exactly 0, naive finite". They are not. True depth is 0 only when the whole path, spot included, has no liquidity, so naive depth is 0 as well. All 423 zero-true rows in the saturation table have zero naive depth. The reverse case does exist: 17 rows are empty at spot with liquidity beyond, so naive depth is 0 while true depth is positive. That is another instance of understatement.
+
+**Consequence for the pitch.** "Everyone measures depth wrong" is false on central tendency and does not appear in this repository. The claim that survives is the one in `data/phase0_results.md`: **naive depth is an excellent point estimate and a worthless guarantee.** A contract that pays on depth is priced on the tail, and in the tail the naive figure fails in both directions.
+
+## D0.10 — The ε branch rule was applied to an associational quantity (2026-11-23)
+
+**Amends D0.5 and D0.7. Neither is edited in place.**
+
+**What happened.** D0.5 states that ε is an association, not a causal elasticity. D0.7 nevertheless read the CI lower bound against the branch thresholds as if it were causal, and selected 3a. The thresholds in `BUILD-PLAN` §0.1 come from a self-funding condition that needs the **causal** effect of depth on volume. An association can contain any amount of reverse causality, with volume attracting liquidity. A near-unit value is its usual signature, and the lagged specification (0.78) barely moves it. Taking an association as causal because its CI happens to clear a threshold is a guess. Rule 1 forbids that.
+
+**Sensitivity** (`data/phase0_results.md`, "Sensitivity: ε discounted for reverse causality"). The non-blue-chip estimate, 0.91 with CI [0.81, 1.10], is multiplied by a discount d, which stands in for the unknown causal fraction:
+
+| d | ε | CI lower bound | Branch by D0.5 | Break-even cells whose lower bound clears |
+|---|---|---|---|---|
+| 1.0 | 0.91 | 0.81 | 3a | all with φ ≤ 0.25 |
+| 0.5 | 0.46 | 0.40 | 3a-low-share | (s, φ) = (0.05, 0.10), (0.05, 0.25), (0.10, 0.10), (0.20, 0.10) |
+| 0.33 | 0.30 | 0.27 | 3b | (0.05, 0.10), (0.10, 0.10) |
+| 0.25 | 0.23 | 0.20 | 3b | (0.05, 0.10) only |
+
+Break-even is `ε* = (s + φ)/(1 − φ)`, using the formula as specified for this analysis. That formula takes the skim base equal to fee revenue.
+
+**Decision.**
+1. **The ε branch is undetermined on this design.** The panel cannot bound the causal fraction. The branch flips from 3a to 3a-low-share at d = 0.5 and to 3b at d = 0.33, and nothing in the data rules out either discount. The case for 3a would need evidence that most of the association is causal: an instrument, or an exogenous liquidity shock. The window provides neither, so the case is not made.
+2. **If a skim is ever built, its caps come from the discount-robust cell.** The only (s, φ) whose lower bound clears at every discount tested is **s = 5%, φ = 10%**. So `MAX_CURATOR_SHARE_BPS = 1000` and maximum skim = 500 bps, not the headline-driven values.
+3. **The question is downstream of D0.8.** A skim funds a retainer, and D0.8 found the retainer has no measured price in the target market. The funding branch is moot until D0.8 is resolved, and Phase 3 stays on hold.
+
+**Rejected:** keeping 3a on the grounds that the pre-registered rule selected it. The rule was pre-registered to stop thresholds moving after the result. It was never meant to turn an association into a cause. Following its letter against its own stated caveat would be the guess rule 1 exists to prevent.
