@@ -34,9 +34,16 @@ def snapshot(pool: dict, block: int, tick_lo: int, tick_hi: int) -> Book:
     return b
 
 
-def quote_gross_in(pool: dict, block: int, limit: int, up: bool) -> int:
+def quote_gross_in(pool: dict, block: int, limit: int, up: bool) -> int | None:
     """Gross input (fee included) the deployed pool charges to move spot to `limit`, by eth_call of
     QuoterV2.quoteExactOutputSingle with an unbounded amount, executed on the state at end of `block`."""
     tin, tout = (pool["token1_address"], pool["token0_address"]) if up else (pool["token0_address"], pool["token1_address"])
     data = calldata("quoteExactOutputSingle", addr(tin), addr(tout), w(1 << 200), w(pool["fee"]), w(limit))
-    return words(eth_call(QUOTER_V2, data, block, gas=200_000_000))[0]
+    try:
+        return words(eth_call(QUOTER_V2, data, block, gas=200_000_000))[0]
+    except RpcError as e:
+        # QuoterV2's callback requires amount0Delta > 0 || amount1Delta > 0: a swap that moves price only
+        # through zero-liquidity ranges is unquotable. The oracle declines; callers must not treat it as 0.
+        if "Unexpected error" in str(e):
+            return None
+        raise

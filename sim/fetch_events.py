@@ -3,6 +3,7 @@ per-pool event streams under .cache/events/. Raw responses are cached by rpc.py.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -12,6 +13,7 @@ from rpc import get_logs
 
 ROOT = Path(__file__).resolve().parent.parent
 EV = ROOT / ".cache" / "events"
+STAGE = ROOT / ".cache" / "events.staging"  # partial output; only complete files are moved into EV
 
 
 def load():
@@ -32,32 +34,33 @@ def decode(log: dict):
     return [blk, idx, "M" if t0 == TOPIC["Mint"] else "B", lo, hi, amt]
 
 
-def main(workers: int = 3):
+def main(workers: int = 3, batch: int = 6):
+    """Streams: chunks are fetched `batch` at a time, decoded, appended per pool, and discarded.
+    Peak memory is a few chunks (~2.5 MB of JSON each), not the whole window."""
     pools, frm, to = load()
     addrs = [p["pool"] for p in pools]
     topics = [TOPIC["Swap"], TOPIC["Mint"], TOPIC["Burn"]]
     chunks = [(b, min(b + 1999, to)) for b in range(frm - frm % 2000, to + 1, 2000)]
-    done = [0]
-
-    def job(c):
-        logs = get_logs(addrs, topics, max(c[0], frm), c[1])
-        done[0] += 1
-        if done[0] % 25 == 0:
-            print(f"{done[0]}/{len(chunks)}", flush=True)
-        return logs
-
-    with ThreadPoolExecutor(workers) as ex:
-        all_logs = [l for part in ex.map(job, chunks) for l in part]
-    per = {a: [] for a in addrs}
-    for l in all_logs:
-        if l.get("removed"):
-            continue
-        per[l["address"].lower()].append(decode(l))
     EV.mkdir(parents=True, exist_ok=True)
-    for a, evs in per.items():
-        evs.sort(key=lambda e: (e[0], e[1]))
-        (EV / f"{a}.json").write_text(json.dumps(evs))
-        print(a, len(evs), sum(1 for e in evs if e[2] == "S"), "swaps")
+    STAGE.mkdir(parents=True, exist_ok=True)
+    tmp = {a: open(STAGE / f"{a}.jsonl", "w") for a in addrs}
+    counts = {a: [0, 0] for a in addrs}
+    with ThreadPoolExecutor(workers) as ex:
+        for k in range(0, len(chunks), batch):
+            part = chunks[k:k + batch]
+            # in-order results, so per-pool streams stay sorted across chunks
+            for logs in ex.map(lambda c: get_logs(addrs, topics, max(c[0], frm), c[1]), part):
+                rows = sorted((decode(l), l["address"].lower()) for l in logs if not l.get("removed"))
+                for ev, a in rows:
+                    tmp[a].write(json.dumps(ev) + "\n")
+                    counts[a][0] += 1
+                    counts[a][1] += ev[2] == "S"
+                del logs, rows
+            print(f"{min(k + batch, len(chunks))}/{len(chunks)}", flush=True)
+    for a, f in tmp.items():
+        f.close()
+        os.replace(STAGE / f"{a}.jsonl", EV / f"{a}.jsonl")
+        print(a, counts[a][0], counts[a][1], "swaps")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,62 @@
+{
+ "method": "QuoterV2.quoteExactOutputSingle(amount=2^200, sqrtPriceLimitX96=target) by eth_call at block-1, vs the replayed book's reference walk (gross = pre-fee input + fee), and vs the gross recorded during the replay. Tolerance: zero.",
+ "quoter": "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+ "sample": "per pool: 8 seeded random hourly samples + first and last sample of the window + up to 4 seeded reservoir-sampled books whose walks include word-boundary steps",
+ "books_by_reason": {
+  "endpoint": 46,
+  "random": 184,
+  "boundary": 20
+ },
+ "walks": 2500,
+ "mismatches": 0,
+ "quoter_declined_zero_depth": 30,
+ "declined_note": "QuoterV2 reverts when a swap moves price only through zero liquidity (both deltas 0). Counted as declined only where the replayed walk is also exactly 0; otherwise a mismatch. Declined walks are excluded from the mutation counts.",
+ "mismatches_vs_recorded": 0,
+ "walks_with_word_boundary_steps": 89,
+ "mutations_on_same_sample": {
+  "amount1 rounds down": {
+   "failing": 1235,
+   "failing_boundary_walks": 39,
+   "still_passing_up": 0,
+   "still_passing_down": 1235
+  },
+  "amount0 rounds down": {
+   "failing": 1235,
+   "failing_boundary_walks": 50,
+   "still_passing_up": 1235,
+   "still_passing_down": 0
+  },
+  "skip word-boundary steps": {
+   "failing": 69,
+   "failing_boundary_walks": 69,
+   "still_passing_up": 1208,
+   "still_passing_down": 1193
+  }
+ },
+ "per_pool_walks": {
+  "0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8": 100,
+  "0x4585fe77225b41b697c938b018e2ac67ac5a20c0": 140,
+  "0xcbcdf9626bc03e24f779434178a73a0b4bad62ed": 100,
+  "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35": 100,
+  "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640": 100,
+  "0x11b815efb8f581194ae79006d24e0d814b7697f6": 140,
+  "0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8": 100,
+  "0x4e68ccd3e89f51c3074ca5072bbac773960dfa36": 100,
+  "0xe931b03260b2854e77e8da8378a1bc017b13cb97": 140,
+  "0x5ab53ee1d50eef2c1dd3d5402789cd27bb52c1bb": 100,
+  "0xac4b3dacb91461209ae9d41ec517c2b9cb1b7daf": 100,
+  "0x4786bb29a1589854204a4e62dcbe26a571224c0f": 100,
+  "0x4c83a7f819a5c37d64b4c5a2f8238ea082fa1f4e": 100,
+  "0xc3db44adc1fcdfd5671f555236eae49f4a8eea18": 100,
+  "0x92560c178ce069cc014138ed3c2f5221ba71f58a": 140,
+  "0xa3f558aebaecaf0e11ca4b2199cc5ed341edfd74": 100,
+  "0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8": 100,
+  "0xe8c6c9227491c0a8156a0106a0204d881bb7e531": 100,
+  "0x7b1e5d984a43ee732de195628d20d05cfabc3cc7": 100,
+  "0x11950d141ecb863f01007add7d1a342041227b58": 140,
+  "0x5764a6f2212d502bc5970f9f129ffcd61e5d7563": 100,
+  "0x7c706586679af2ba6d1a9fc2da9c6af59883fdd3": 100,
+  "0x1d42064fc4beb5f8aaf85f4617ae8b3b5b8bd801": 100
+ },
+ "mismatch_detail": []
+}

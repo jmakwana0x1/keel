@@ -67,10 +67,10 @@ The headline finding. On a book with liquidity at spot and a void above, true de
 
 ### Gate 0
 
-- [ ] ε measured, branch decided and written down
-- [ ] `k_arb` measured per pool class
-- [ ] Saturation measured on a real forked book, artifact committed
-- [ ] `sim/model.py` regenerates all three, CI diffs them
+- [x] ε measured, branch decided and written down: **3a, fee skim** (D0.7, with the causal caveat)
+- [~] `k_arb` measured per pool class: done. Back-solve against deal pricing: **open, no data source** (D0.7)
+- [x] Saturation measured on real books (archive state, 2,070 pool-blocks), artifact committed. Small at the median, fat-tailed (D0.7)
+- [x] `sim/model.py` regenerates all three, CI diffs them
 
 ---
 
