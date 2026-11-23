@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  numbers:
+    # Every published number is regenerated from committed inputs; any drift fails the build.
+    # model.py also refuses to emit if its own preconditions fail (quoter diff mismatch, thin sample).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: inputs
+        run: test -f data/phase0_pool_days.csv && echo present=1 >> "$GITHUB_OUTPUT" || echo 'Phase 0 inputs not committed yet; skipping'
+      - if: steps.inputs.outputs.present == '1'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - if: steps.inputs.outputs.present == '1'
+        - run: pip install -r sim/requirements.txt
+      - if: steps.inputs.outputs.present == '1'
+        - run: cd sim && python model.py
+      - if: steps.inputs.outputs.present == '1'
+        - run: git diff --exit-code data/
