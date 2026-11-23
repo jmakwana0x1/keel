@@ -18,8 +18,8 @@ jobs:
         with:
           python-version: "3.14"
       - if: steps.inputs.outputs.present == '1'
-        - run: pip install -r sim/requirements.txt
+        run: pip install -r sim/requirements.txt
       - if: steps.inputs.outputs.present == '1'
-        - run: cd sim && python model.py
+        run: cd sim && python model.py
       - if: steps.inputs.outputs.present == '1'
-        - run: git diff --exit-code data/
+        run: git diff --exit-code data/
