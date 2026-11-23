@@ -218,3 +218,34 @@ Break-even is `ε* = (s + φ)/(1 − φ)`, using the formula as specified for th
 3. **The question is downstream of D0.8.** A skim funds a retainer, and D0.8 found the retainer has no measured price in the target market. The funding branch is moot until D0.8 is resolved, and Phase 3 stays on hold.
 
 **Rejected:** keeping 3a on the grounds that the pre-registered rule selected it. The rule was pre-registered to stop thresholds moving after the result. It was never meant to turn an association into a cause. Following its letter against its own stated caveat would be the guess rule 1 exists to prevent.
+
+## D0.11 — Phase 0.4: depth is not withdrawn when volatility spikes. It is left behind. (2026-11-23)
+
+**Question.** Option A (raised in review after D0.8) reprices the mandate as an **abandonment option**. A profitable LP gives up the right to withdraw, and that right is worth most when volatility spikes, which is exactly when depth is needed and, on the hypothesis, exactly when it leaves. So: does depth leave when volatility spikes? The measurement was run before committing to option A.
+
+**Method** (`sim/vol_depth.py`, `data/phase0_vol_depth.csv`, summary in `data/phase0_results.md` §0.4).
+- **Depth measure:** effective liquidity `L_eff = D/Δ√p` from the exact walk to ±1% and ±5%, every hour, for 23 pools over 90 days. It is price-neutral, so a token repricing does not register as withdrawal.
+- **Decomposition:** each hour's change is split by walking the *previous* hour's book at the *current* price. *Passive* is price moving through a fixed book; *active* is mint and burn. In all 36,000+ hours without a Mint or Burn the two books agree exactly, which is asserted, and a planted crossing-sign bug fails that assert on the first tick crossed.
+- **Placebo:** an event study of declustered top-decile volatility hours against a calm-hour placebo (|r| ≤ pool median).
+- **Not pre-registered:** the thresholds (decile, 24 h baseline, 95% recovery, 72 h horizon) were chosen for this analysis.
+
+**The window contained real stress.** WETH/USDT 0.05% shows a worst peak-to-trough of −44% and hourly moves up to 20%. ENA, ONDO and APE fell 37–47%. "LPs did not flee" is tested against a drawdown, not a calm quarter.
+
+**Results.**
+1. **LPs do not withdraw in volatile hours.** In top-decile hours, net mint/burn is positive or zero in every class (ratio of sums: blue-chip +0.11%, mid-cap −0.32% / +0.24% at ±1% / ±5%, long-tail +0.71% of baseline). Median depth in top-decile hours is within 1% of baseline, and only 12 of 23 pools show lower median depth in volatile hours, a coin flip.
+2. **Depth does fall in the tail of a volatile hour, passively.** p10 depth in top-decile hours is −24% (blue-chip) and −27% (mid-cap), against −6% and −9% in other hours. In the volatile hours that end more than 20% below baseline, the hour's own change (median −6% to −7%) is **drift**: the median active share of that loss is 0. Price leaves the concentrated ranges, and the liquidity stays where it was.
+3. **The 24-hour drawdown risk is real but not volatility-specific.**
+   - **How often:** a drawdown of more than 20% within 24 h follows 20.5% of volatile hours and 16.4% of calm hours on blue-chip; 18.5% against 16.8% on mid-cap; 7.8% against 7.7% on long-tail. None of these differences is significant (the largest is about 1.6 SE).
+   - **How long it lasts:** given a >5% drawdown, median recovery to 95% of baseline is 12–22 h, and 16–32% of drawdowns have not recovered at 72 h. This holds after calm and volatile hours alike.
+
+**What this does to option A.**
+- **The abandonment-option thesis, as stated, is not supported at hourly resolution.** LPs did not exercise a withdrawal option when volatility spiked. Even through a 44% ETH drawdown they added liquidity on net. A product priced as "the option to flee" prices something LPs were not observed to do.
+- **What the data shows instead is that depth is *left behind*.** After a large move, depth around the *new* price is thin because positions are concentrated around the *old* one. Nobody re-centres quickly: recovery takes most of a day, and a fifth to a third of drawdowns have not recovered after three days. That gap is real, it is measured, and it is exactly what a mandate enforces. `prove()` measures depth at the **current** price, so a curator who does not follow the price is in breach.
+- **So the surviving product is a *follow* commitment, not a *stay* commitment.** The issuer is not buying "do not leave". They are buying "be where the price is now, within N blocks". The curator's cost is the cost of re-centring promptly: gas, rebalancing loss, and giving up the choice of *when* to re-centre. That cost is not `R*`, and it is not an abandonment option either. It has not been measured.
+
+**Limits.**
+- Hourly sampling nets out intra-hour burn-and-remint. A withdrawal that returns within the hour, such as JIT behaviour, is invisible here.
+- "Needed" is proxied by realised volatility. A large one-directional move with modest hourly variance could be missed.
+- One 90-day window with one major ETH drawdown is one stress episode, not a distribution of them.
+
+**Status.** The finding is recorded, and the redesign is not acted on. Two directions are open for the project owner: price the *follow* commitment (the re-centring cost, which is measurable from this data), or accept that option A fails as originally framed. Phase 1 stays on hold. The meter, `prove()`, the bond and the Cannot manifest are unaffected by either outcome.

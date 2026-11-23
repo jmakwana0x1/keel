@@ -184,3 +184,50 @@ Zero-depth books: 423 rows have true depth exactly 0, and 0 of those have positi
 Depth growth from ±1% to ±10%: naive median ×9.7861, true median ×9.6227 (true p25 ×8.4379, p10 ×6.872).
 
 The pre-measurement prediction that the gap would be largest on long-tail books is falsified. See docs/ARCHITECTURE.md D0.9.
+
+## 0.4 Depth under volatility — does depth leave when it is needed?
+
+Effective liquidity L_eff = D/Δ√p for the exact walk to ±x. It is price-neutral: it moves only when the book's shape around spot moves. Depth is relative to the median of the previous 24 hours. A pool's top-decile hours are its 10% largest absolute hourly log returns. Active = mint/burn during the hour; passive = price moving through a fixed book. Both are ratio-of-sums shares of baseline (Σ change / Σ baseline). See D0.11.
+
+Thresholds: Decile cut, 24 h baseline, 95% recovery level, 24 h trough window, 72 h horizon and the calm-hour placebo (|r| <= pool median) were chosen for this analysis, not pre-registered.
+
+| Class | ±x | median depth vs baseline, top decile | rest | p10 top | p10 rest | active, top | rest | passive, top | rest |
+|---|---|---|---|---|---|---|---|---|---|
+| blue-chip | 1% | -0.0075 | 0.0009 | -0.2386 | -0.0645 | 0.0011 | -0.0004 | -0.0019 | 0.0003 |
+| blue-chip | 5% | -0.0092 | 0.0004 | -0.1861 | -0.0571 | 0.0001 | -0.0001 | -0.0004 | 0.0 |
+| long-tail | 1% | 0.0 | 0.0 | -0.0543 | -0.027 | 0.0071 | 0.0001 | -0.0055 | 0.0003 |
+| long-tail | 5% | 0.0 | 0.0 | -0.0744 | -0.0376 | 0.0102 | -0.0001 | 0.0008 | -0.0003 |
+| mid-cap | 1% | -0.0008 | 0.001 | -0.2733 | -0.0866 | -0.0032 | 0.0011 | 0.0102 | -0.0018 |
+| mid-cap | 5% | -0.0011 | 0.001 | -0.2724 | -0.0757 | 0.0024 | 0.0007 | -0.0056 | -0.0005 |
+
+Pools whose median depth is lower in top-decile hours than in the rest: 12 of 23 at ±1%, 12 of 23 at ±5%.
+
+Event study: top-decile hours (**vol**) against a placebo of calm hours, |r| ≤ pool median (**calm**). Both are declustered 24 h apart. Trough is the minimum over the next 24 h; recovery is back to 95% of baseline. The trough is negative for any noisy series, so only the vol − calm difference carries information.
+
+| Class | events | ±x | n | median trough | p10 trough | trough < −5% | trough < −20% | median recovery h (given −5%) | unrecovered at 72 h |
+|---|---|---|---|---|---|---|---|---|---|
+| blue-chip | vol | 1% | 386 | -0.0464 | -0.3317 | 0.4922 | 0.2047 | 16.0 | 0.2368 |
+| blue-chip | vol | 5% | 386 | -0.0289 | -0.257 | 0.443 | 0.1658 | 19.0 | 0.2982 |
+| blue-chip | calm | 1% | 507 | -0.0289 | -0.3033 | 0.4083 | 0.1637 | 21.0 | 0.2174 |
+| blue-chip | calm | 5% | 507 | -0.0223 | -0.2343 | 0.3807 | 0.1243 | 19.0 | 0.2798 |
+| long-tail | vol | 1% | 500 | -0.0 | -0.1554 | 0.174 | 0.078 | 19.5 | 0.2874 |
+| long-tail | vol | 5% | 500 | -0.0015 | -0.1578 | 0.214 | 0.074 | 22.0 | 0.3178 |
+| long-tail | calm | 1% | 711 | -0.0016 | -0.1647 | 0.1969 | 0.0774 | 20.0 | 0.2786 |
+| long-tail | calm | 5% | 711 | -0.0059 | -0.1593 | 0.2124 | 0.0675 | 21.0 | 0.2914 |
+| mid-cap | vol | 1% | 189 | -0.0264 | -0.3548 | 0.4233 | 0.1852 | 14.5 | 0.175 |
+| mid-cap | vol | 5% | 189 | -0.0294 | -0.4051 | 0.4021 | 0.1746 | 12.0 | 0.3026 |
+| mid-cap | calm | 1% | 256 | -0.0377 | -0.3292 | 0.4453 | 0.168 | 17.0 | 0.1579 |
+| mid-cap | calm | 5% | 256 | -0.0268 | -0.3216 | 0.4258 | 0.1406 | 19.0 | 0.2385 |
+
+Tail hours (depth more than 20% below baseline at ±1%): how much of that hour's own change was mint/burn?
+
+| Class | hours | n | median hour change | median active share of the hour's loss | hours where burn loss exceeded drift loss |
+|---|---|---|---|---|---|
+| blue-chip | rest | 490 | -0.0 | 0.0 | 0.3837 |
+| blue-chip | top_decile | 210 | -0.0669 | -0.0005 | 0.2238 |
+| long-tail | rest | 492 | 0.0 | 0.0 | 0.2459 |
+| long-tail | top_decile | 114 | -0.0616 | 0.0 | 0.307 |
+| mid-cap | rest | 373 | -0.0002 | 0.0 | 0.429 |
+| mid-cap | top_decile | 103 | -0.0586 | 0.0 | 0.2136 |
+
+Stress in the window: the largest absolute hourly log return across pools is 0.5966, and the worst peak-to-trough is -0.4663. Per-pool figures are under vol_depth.stress in phase0_results.json.

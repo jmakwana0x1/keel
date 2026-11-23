@@ -122,6 +122,100 @@ def elasticity(df: pd.DataFrame, depth_col: str, lag: bool = False) -> dict:
             "n_obs": int(len(d)), "n_pools": int(d.pool.nunique())}
 
 
+def vol_depth(cls: dict) -> dict:
+    """Phase 0.4 (D0.11): effective liquidity in top-decile volatility hours vs the rest, decomposed into
+    active (mint/burn) and passive (price drift through a fixed book), plus a declustered event study
+    against a calm-hour placebo."""
+    v = pd.read_csv(DATA / "phase0_vol_depth.csv")
+    out = {"by_class": {}, "events": {}, "pools_top_decile_lower": {}, "thresholds_note":
+           "Decile cut, 24 h baseline, 95% recovery level, 24 h trough window, 72 h horizon and the calm-hour "
+           "placebo (|r| <= pool median) were chosen for this analysis, not pre-registered."}
+    frames = []
+    for pool, g in v.groupby("pool"):
+        g = g.sort_values("i").reset_index(drop=True)
+        g["absr"] = (2 * np.log(g.sqrt.astype(float)).diff()).abs()
+        for x in ("1", "5"):
+            base = g[f"leff{x}"].shift(1).rolling(24, min_periods=24).median()
+            g[f"base{x}"] = base
+            g[f"rel{x}"] = g[f"leff{x}"] / base - 1
+            g[f"act{x}"] = g[f"leff{x}"] - g[f"frozen{x}"]            # absolute, in liquidity units
+            g[f"pas{x}"] = g[f"frozen{x}"] - g[f"leff{x}"].shift(1)
+        g["top"] = g.absr >= g.absr.quantile(0.9)
+        g["cls"] = cls[pool]
+        g["pool"] = pool
+        frames.append(g)
+    a = pd.concat(frames)
+    a = a[np.isfinite(a.rel1) & np.isfinite(a.rel5)].dropna(subset=["absr", "act1", "act5", "pas1", "pas5"])
+    for c, g in a.groupby("cls"):
+        out["by_class"][c] = {}
+        for x in ("1", "5"):
+            t, o = g[g.top], g[~g.top]
+            # active / passive as ratio of sums (Σ change / Σ baseline): robust to near-zero baselines on thin books
+            rs = lambda d, col: r(d[col].sum() / d[f"base{x}"].sum())
+            out["by_class"][c][x] = {
+                "hours_top": int(len(t)), "hours_rest": int(len(o)),
+                "median_rel_top": r(t[f"rel{x}"].median()), "median_rel_rest": r(o[f"rel{x}"].median()),
+                "p10_rel_top": r(t[f"rel{x}"].quantile(.1)), "p10_rel_rest": r(o[f"rel{x}"].quantile(.1)),
+                "active_top": rs(t, f"act{x}"), "active_rest": rs(o, f"act{x}"),
+                "passive_top": rs(t, f"pas{x}"), "passive_rest": rs(o, f"pas{x}")}
+    # tail hours: depth > 20% below baseline at ±1%. How much of that hour's own change was mint/burn?
+    out["tail_hours"] = {}
+    big = a[a.rel1 < -0.20]
+    for (c, t), g in big.groupby(["cls", "top"]):
+        ch = g.act1 + g.pas1
+        out["tail_hours"].setdefault(c, {})["top_decile" if t else "rest"] = {
+            "hours": int(len(g)), "median_hour_change": r((ch / g.base1).median()),
+            "median_active_share_of_hour_change": r((g.act1 / ch).where(ch < 0).median()),
+            "share_hours_active_exceeds_passive_loss": r((g.act1 < g.pas1).mean())}
+    # stress context: worst peak-to-trough move of each pool's price over the window (either direction of quote)
+    out["stress"] = {}
+    for g in frames:
+        lp = 2 * np.log(g.sqrt.astype(float))
+        out["stress"][g.pool.iloc[0]] = {"max_abs_hourly_return": r(lp.diff().abs().max()),
+                                         "worst_drawdown": r(np.expm1((lp - lp.cummax()).min())),
+                                         "worst_runup": r(np.expm1((lp - lp.cummin()).max()))}
+    for x in ("1", "5"):
+        lower = [g[g.top][f"rel{x}"].median() < g[~g.top][f"rel{x}"].median() for _, g in a.groupby("pool")]
+        out["pools_top_decile_lower"][x] = {"pools": int(sum(lower)), "of": len(lower)}
+    rng = np.random.default_rng(20261123)
+    ev = []
+    for g in frames:
+        pool = g.pool.iloc[0]
+        calm = g.absr <= g.absr.median()
+        orders = {"vol": list(g[g.top].sort_values("absr", ascending=False).index),
+                  "calm": list(rng.permutation(g[calm].index.to_numpy()))}
+        for kind, order in orders.items():
+            taken = []
+            for i in order:
+                if i + 72 < len(g) and np.isfinite(g.loc[i, "base1"]) and np.isfinite(g.loc[i, "base5"]) \
+                        and all(abs(i - j) >= 24 for j in taken):
+                    taken.append(i)
+            for i in taken:
+                row = {"cls": cls[pool], "kind": kind}
+                for x in ("1", "5"):
+                    path = g.loc[i:i + 72, f"leff{x}"].to_numpy() / g.loc[i, f"base{x}"]
+                    k0 = int(np.argmin(path[:25]))
+                    trough = path[k0]
+                    rec = next((k for k in range(k0, 73) if path[k] >= 0.95), None)
+                    row[f"trough{x}"] = trough - 1
+                    row[f"recovery{x}"] = (rec if trough < 0.95 else 0)
+                    row[f"unrecovered{x}"] = bool(trough < 0.95 and rec is None)
+                ev.append(row)
+    e = pd.DataFrame(ev)
+    for (c, kind), g in e.groupby(["cls", "kind"]):
+        out["events"].setdefault(c, {})[kind] = {}
+        for x in ("1", "5"):
+            dd = g[g[f"trough{x}"] < -0.05]
+            out["events"][c][kind][x] = {
+                "events": int(len(g)), "median_trough": r(g[f"trough{x}"].median()),
+                "p10_trough": r(g[f"trough{x}"].quantile(.1)),
+                "share_trough_below_minus_5pct": r((g[f"trough{x}"] < -0.05).mean()),
+                "share_trough_below_minus_20pct": r((g[f"trough{x}"] < -0.20).mean()),
+                "median_recovery_hours_given_drawdown": r(dd[f"recovery{x}"].dropna().median()) if len(dd) else None,
+                "share_unrecovered_72h_given_drawdown": r(dd[f"unrecovered{x}"].mean()) if len(dd) else None}
+    return out
+
+
 def branch(e: dict) -> dict:
     """docs/ARCHITECTURE.md D0.5: reads the lower bound of the wider of the CRV1-t and wild-cluster CIs;
     a CI straddling a threshold takes the more conservative branch."""
@@ -237,6 +331,9 @@ def main():
     bres["pools_rstar_positive"] = {x: int((bp[bp.x_pct == x].rstar_usd > 0).sum()) for x in ("1", "5")}
     bres["pools"] = int(bp.pool.nunique())
     res["band_economics"] = bres
+
+    # ---- 0.4 depth under volatility
+    res["vol_depth"] = vol_depth(cls)
 
     # ---- 0.3 saturation
     s = sat.dropna(subset=["ratio"])
@@ -386,6 +483,45 @@ def render(res: dict) -> str:
           f"(true p25 ×{g['true_p25']}, p10 ×{g['true_p10']}).", "",
           "The pre-measurement prediction that the gap would be largest on long-tail books is falsified. See "
           "docs/ARCHITECTURE.md D0.9."]
+    vd = res["vol_depth"]
+    L += ["", "## 0.4 Depth under volatility — does depth leave when it is needed?", "",
+          "Effective liquidity L_eff = D/Δ√p for the exact walk to ±x. It is price-neutral: it moves only when the book's "
+          "shape around spot moves. Depth is relative to the median of the previous 24 hours. A pool's top-decile hours "
+          "are its 10% largest absolute hourly log returns. Active = mint/burn during the hour; passive = price moving "
+          "through a fixed book. Both are ratio-of-sums shares of baseline (Σ change / Σ baseline). See D0.11.", "",
+          f"Thresholds: {vd['thresholds_note']}", "",
+          "| Class | ±x | median depth vs baseline, top decile | rest | p10 top | p10 rest | active, top | rest | "
+          "passive, top | rest |", "|---|---|---|---|---|---|---|---|---|---|"]
+    for c, xs in vd["by_class"].items():
+        for x, v in xs.items():
+            L.append(f"| {c} | {x}% | {v['median_rel_top']} | {v['median_rel_rest']} | {v['p10_rel_top']} | "
+                     f"{v['p10_rel_rest']} | {v['active_top']} | {v['active_rest']} | {v['passive_top']} | {v['passive_rest']} |")
+    pl = vd["pools_top_decile_lower"]
+    L += ["", f"Pools whose median depth is lower in top-decile hours than in the rest: {pl['1']['pools']} of "
+          f"{pl['1']['of']} at ±1%, {pl['5']['pools']} of {pl['5']['of']} at ±5%.", "",
+          "Event study: top-decile hours (**vol**) against a placebo of calm hours, |r| ≤ pool median (**calm**). Both are "
+          "declustered 24 h apart. Trough is the minimum over the next 24 h; recovery is back to 95% of baseline. The trough "
+          "is negative for any noisy series, so only the vol − calm difference carries information.", "",
+          "| Class | events | ±x | n | median trough | p10 trough | trough < −5% | trough < −20% | median recovery h (given −5%) | "
+          "unrecovered at 72 h |", "|---|---|---|---|---|---|---|---|---|---|"]
+    for c, kinds in vd["events"].items():
+        for kind in ("vol", "calm"):
+            for x, v in kinds[kind].items():
+                L.append(f"| {c} | {kind} | {x}% | {v['events']} | {v['median_trough']} | {v['p10_trough']} | "
+                         f"{v['share_trough_below_minus_5pct']} | {v['share_trough_below_minus_20pct']} | "
+                         f"{v['median_recovery_hours_given_drawdown']} | {v['share_unrecovered_72h_given_drawdown']} |")
+    L += ["", "Tail hours (depth more than 20% below baseline at ±1%): how much of that hour's own change was mint/burn?", "",
+          "| Class | hours | n | median hour change | median active share of the hour's loss | hours where burn loss exceeded drift loss |",
+          "|---|---|---|---|---|---|"]
+    for c, kinds in vd["tail_hours"].items():
+        for kind, v in kinds.items():
+            L.append(f"| {c} | {kind} | {v['hours']} | {v['median_hour_change']} | {v['median_active_share_of_hour_change']} | "
+                     f"{v['share_hours_active_exceeds_passive_loss']} |")
+    st = vd["stress"].values()
+    L += ["", f"Stress in the window: the largest absolute hourly log return across pools is "
+          f"{max(v['max_abs_hourly_return'] for v in st)}, and the worst peak-to-trough is "
+          f"{min(v['worst_drawdown'] for v in st)}. Per-pool figures are under vol_depth.stress in "
+          "phase0_results.json."]
     return "\n".join(L)
 
 
