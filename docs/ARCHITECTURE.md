@@ -249,3 +249,55 @@ Break-even is `ε* = (s + φ)/(1 − φ)`, using the formula as specified for th
 - One 90-day window with one major ETH drawdown is one stress episode, not a distribution of them.
 
 **Status.** The finding is recorded, and the redesign is not acted on. Two directions are open for the project owner: price the *follow* commitment (the re-centring cost, which is measurable from this data), or accept that option A fails as originally framed. Phase 1 stays on hold. The meter, `prove()`, the bond and the Cannot manifest are unaffected by either outcome.
+
+## D0.12 — Phase 0.5 pre-registration: the re-centring gap (2026-11-23, before any computation)
+
+Written and pushed **before** any Phase 0.5 code was run on data. The commit that adds this section precedes every commit containing a Phase 0.5 result. Nothing in this section may be edited after results exist. Amendments go in a new numbered decision.
+
+**Question.** D0.11 found depth is left behind at the old price after moves, and that recovery takes most of a day. Is staying centred worth more than it costs? Re-centring crystallises the move: you sell the depreciated side at the new price. Not re-centring keeps the option that price comes back, which D0.11's recovery figures say often pays. The product depends on the **gap** between the benefit and the cost.
+
+### Simulation (`sim/recentre.py`)
+
+- **Pools and target classes.** All 23 pools are simulated. Classification reads the **15 target pools** (mid-cap + long-tail, D0.3).
+- **Capital.** C = $1,000,000 for blue-chip and $100,000 otherwise, the D0.8 notionals. It is deployed at the window's first hourly sample as a band of ±x centred at spot, with x ∈ {1%, 5%}.
+- **Curators**, run over the same tape:
+  - **P** never re-centres.
+  - **R_N** re-centres N blocks after spot leaves its band, for N ∈ {25, 300, 1,800, 7,200}.
+  - **Headline: R_300 vs P, at x = 5%.** Everything else is sensitivity.
+- **Trigger.** A trigger arms at the first swap that leaves spot outside the band. The re-centre executes at the first swap with block ≥ trigger + N, if spot is still outside the band. If spot is back inside first, the trigger clears.
+- **Re-centre mechanics.**
+  1. Withdraw the band at the current price.
+  2. Swap the excess token to the ratio the new band needs, through **the pool's actual book at that moment**, with exact v3 swap math: real price impact plus the pool fee. The curator's own band is excluded from that book.
+  3. Mint a new ±x band centred at the post-swap spot with all resulting value.
+  - The exact-input swap function is diffed against QuoterV2 `quoteExactInputSingle` at zero tolerance before use.
+- **Fees.** Accrued by the per-position identity, `f/(1−f)·L·Δ√p` in range (D0.8, verified against the exact walk). Price-taking: the band does not alter the observed path. Fees are kept in kind, not compounded, and valued at terminal prices.
+- **Gas.** 500,000 gas per re-centre (burn + collect + swap + mint), priced at the base fee of the day's first block, with no priority fee, at ETH/USD at the time.
+- **Terminal.** At the window's last hourly sample: position value at final spot plus fees, minus gas, all in USD.
+
+**Decomposition**, R − P, as % of C over the 90-day window:
+- **benefit** = fees_R − fees_P
+- **rebalance cost** = Σ over re-centres of (pool fee + price impact) on the rebalancing swap
+- **gas** = Σ gas
+- **market** = the residual inventory difference, i.e. the crystallised move against holding the option
+- **cost** = gas + rebalance cost − market
+- **gap** = benefit − cost = total_R − total_P
+
+### Outcome classification (target pools, headline configuration)
+
+- **Coordination failure (benefit > cost):** median gap > **+0.5% of C**, and the gap is positive on at least **2/3** of target pools.
+- **Priced (benefit < cost):** median gap < **−0.5% of C**, and the gap is negative on at least 2/3 of target pools.
+- **Thin:** anything else.
+- **Kill condition** (overrides all three): if the median |benefit| < **1% of C** **and** the median |cost| < 1% of C, nothing is left on the table in either direction and **the mandate has no economic content** on this measurement.
+
+0.5% of C over 90 days is about 2% annualised. Below that, a gap is within the noise of a single window and too small to fund a bond's opportunity cost. 1% of C over 90 days is about 4% annualised, roughly one typical LP fee yield. A re-centring effect smaller than that in both directions is immaterial.
+
+### Control group: managed positions (`sim/managed.py`)
+
+- **Owner.** Taken from Mint/Burn `owner` (topic 1). Positions held through the NonfungiblePositionManager (`0xC36442b4a4522E871399CD717aBDD847Ab11FE88`) are excluded, because their owner is shared.
+- **Re-centre event.** The same owner burns liquidity > 0 from a range and mints into a **different** range within **10 blocks**.
+- **Managed owner.** At least **5** re-centre events on that pool in the window.
+- **Reported per pool:** number of managed owners; their share of active liquidity at hourly samples; their re-centre latency (blocks from spot leaving their band to their re-mint); and their fee yield (fees per $ of position value per day, by the per-position identity), against the P and R_300 simulations at ±5%.
+- **Reading.** The control group converts "nobody re-centres" from an absence into a comparison. It is **descriptive**: classification is decided by the simulation, not by the control group.
+- **Known limit.** Positions opened before the window are tracked only from their first in-window event.
+
+**Nothing here is a result.** Results go in D0.13.
