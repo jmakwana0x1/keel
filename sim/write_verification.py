@@ -9,6 +9,8 @@ PY = {
     "amount0 rounds down": "fails every **down** walk (token0 in), no up walk",
     "skip word-boundary steps": "fails 69 of 89 walks containing a word-boundary step, and **no other walk**; the 20 that "
                                 "keep passing are the ≤1-unit cases where one round-up equals two",
+    "contribution rounds up (token1)": "none: new in Phase 1 (D1.2 direction test)",
+    "contribution rounds up (token0)": "none: new in Phase 1 (D1.2 direction test)",
 }
 
 
@@ -28,7 +30,9 @@ def main():
          "| amount1 rounds down | `lib/v4-core/src/libraries/SqrtPriceMath.sol` `getAmount1Delta`: round-up term forced to 0 |",
          "| amount0 rounds down | same file, `getAmount0Delta`: floor branch taken |",
          "| skip word-boundary steps | `src/adapters/V4TickSource.sol`: both search directions skip empty words instead of "
-         "stopping at the boundary |", "",
+         "stopping at the boundary |",
+         "| contribution rounds up (token1) | `src/libraries/DepthLib.sol` `contributionAt`: `getAmount1Delta(..., false)` → `true` |",
+         "| contribution rounds up (token0) | same function, `getAmount0Delta(..., false)` → `true` |", "",
          "| Test | baseline | " + " | ".join(muts) + " | after restore |", "|---|---|" + "---|" * len(muts) + "---|"]
     for t in tests:
         L.append(f"| `{t}` | {r['baseline'][t]} | " + " | ".join(
@@ -38,7 +42,7 @@ def main():
         failing = [t for t in tests if r[m].get(t) == "FAIL"]
         L.append(f"- **{m}** — Solidity: {len(failing)} of {len(tests)} tests fail "
                  f"({', '.join('`' + t.split('.')[-1] + '`' for t in failing) or 'none'}). Python twin (Phase 0, on real "
-                 f"books vs QuoterV2): {PY[m]} ({q[m]['failing']} walks failing).")
+                 f"books vs QuoterV2): {PY[m]}" + (f" ({q[m]['failing']} walks failing)." if m in q else "."))
     L += ["", "### Findings about the port", "",
           "1. **Only the Python reference detects a rounding defect inside v4-core.** The rounding mutations sit in "
           "`SqrtPriceMath`, which the PoolManager shares. On the side where the PoolManager differential is a pure value "
@@ -63,7 +67,47 @@ def main():
           "reason is **not established**; the likely one is that its walks never drain a side of the pool, so finding "
           "2's deposit shortfall never surfaces. None of these suites is the line of defence for these defects, and "
           "none claims to be."]
+    L += phase2()
     (ROOT / "data" / "verification.md").write_text("\n".join(L) + "\n")
+
+
+SITES2 = {
+    "negative site ungated": "`KeelHook._burnMandate`: the curator/ACTIVE gate at the negative site → `if (false)`",
+    "uncredited proof pays": "`MandateLib.applyProof`: `if (!credited) return e;` deleted",
+    "others' depth pays the curator": "`MandateLib.sideVerdict`: a pool proven deep by others no longer downgraded",
+    "capped walk breaches": "`DepthLib.verdict`: capped/exhausted → BREACH instead of INCONCLUSIVE",
+    "staleness ignored": "`MandateLib.applyProof`: the `>= stalenessBlocks` condition removed",
+    "pull does not void credit": "`KeelHook.reshape`: the same-block void branch disabled",
+    "donate unguarded": "`KeelHook._flush`: the zero-liquidity guard before `donate` disabled",
+    "mint widening negated": "`PlacementLib.mintAt`: `int256(uint256(liquidity))` negated",
+    "bounty above donation": "`MandateLib.BOUNTY_BPS`: 2,000 → 6,000",
+}
+
+
+def phase2() -> list[str]:
+    f = ROOT / "data" / "phase2_mutations.json"
+    if not f.exists():
+        return []
+    r = json.loads(f.read_text())
+    muts = [k for k in r if k not in ("baseline", "after_restore")]
+    tests = list(r["baseline"])
+    L = ["", "## Phase 2 — the mandate: one planted edit per lifecycle guarantee", "",
+         "Suites: `KeelHookTest`, `MandateLibTest`, `DepthLibUnitTest`, `DepthBoundaryTest` (the Phase 1 artifact suites "
+         "do not touch hook code and are not re-run here).", "", "| Mutation | Site |", "|---|---|"]
+    L += [f"| {m} | {SITES2[m]} |" for m in muts]
+    L += ["", "| Test | baseline | " + " | ".join(muts) + " | after restore |", "|---|---|" + "---|" * len(muts) + "---|"]
+    for t in tests:
+        L.append(f"| `{t}` | {r['baseline'][t]} | " + " | ".join(
+            ("**FAIL**" if r[m].get(t) == "FAIL" else r[m].get(t, "—")) for m in muts) + f" | {r['after_restore'][t]} |")
+    L += ["", "### Localisation", ""]
+    for m in muts:
+        failing = [t for t in tests if r[m].get(t) == "FAIL"]
+        L.append(f"- **{m}**: {len(failing)} of {len(tests)} fail "
+                 f"({', '.join('`' + t.split('.')[-1] + '`' for t in failing) or '**none: undetected**'}).")
+    fin = ROOT / "data" / "phase2_findings.md"
+    if fin.exists():
+        L += ["", "### Findings", "", fin.read_text().rstrip()]
+    return L
 
 
 if __name__ == "__main__":

@@ -153,28 +153,42 @@ library DepthLib {
     /// contribution = L_c · (√p(min(target, upper)) − √p(max(anchor, lower)))   (token1, upward)
     ///              = L_c · (1/√p(max(target, lower)) − 1/√p(min(anchor, upper)))   (token0, downward)
     /// Not a second walk: the meter targets a fixed price, so the same ticks are traversed with and without the
-    /// band, and each step's input is linear in that step's liquidity. Rounded DOWN (never over-credits).
-    /// @dev Integer caveat: the walk rounds every step UP, so the two-walk difference can exceed this closed form by
-    /// at most one unit per step of the walk with the band (docs/ARCHITECTURE.md D1.2). It is exact in real numbers.
+    /// band, and each step's input is linear in that step's liquidity.
+    /// @dev One rounding, DOWN: equals floor of the real-valued contribution, so it never over-credits (D1.2). The
+    /// two-walk difference rounds up once per step and is the noisier estimator, not the reference.
     function contribution(uint128 liquidity, int24 lower, int24 upper, int24 anchor, int24 target)
         internal
         pure
         returns (uint256)
     {
-        if (target > anchor) {
-            int24 lo = anchor > lower ? anchor : lower;
-            int24 hi = target < upper ? target : upper;
+        return contributionAt(
+            liquidity,
+            TickMath.getSqrtPriceAtTick(lower),
+            TickMath.getSqrtPriceAtTick(upper),
+            TickMath.getSqrtPriceAtTick(anchor),
+            TickMath.getSqrtPriceAtTick(target)
+        );
+    }
+
+    /// @notice The same closed form on sqrt prices, for an anchor at spot (which is generally not a tick price).
+    /// The tick form above delegates here, so there is one implementation and one rounding site per token.
+    function contributionAt(
+        uint128 liquidity,
+        uint160 sqrtLower,
+        uint160 sqrtUpper,
+        uint160 sqrtAnchor,
+        uint160 sqrtTarget
+    ) internal pure returns (uint256) {
+        if (sqrtTarget > sqrtAnchor) {
+            uint160 lo = sqrtAnchor > sqrtLower ? sqrtAnchor : sqrtLower;
+            uint160 hi = sqrtTarget < sqrtUpper ? sqrtTarget : sqrtUpper;
             if (hi <= lo) return 0;
-            return SqrtPriceMath.getAmount1Delta(
-                TickMath.getSqrtPriceAtTick(lo), TickMath.getSqrtPriceAtTick(hi), liquidity, false
-            );
-        } else if (target < anchor) {
-            int24 lo = target > lower ? target : lower;
-            int24 hi = anchor < upper ? anchor : upper;
+            return SqrtPriceMath.getAmount1Delta(lo, hi, liquidity, false);
+        } else if (sqrtTarget < sqrtAnchor) {
+            uint160 lo = sqrtTarget > sqrtLower ? sqrtTarget : sqrtLower;
+            uint160 hi = sqrtAnchor < sqrtUpper ? sqrtAnchor : sqrtUpper;
             if (hi <= lo) return 0;
-            return SqrtPriceMath.getAmount0Delta(
-                TickMath.getSqrtPriceAtTick(lo), TickMath.getSqrtPriceAtTick(hi), liquidity, false
-            );
+            return SqrtPriceMath.getAmount0Delta(lo, hi, liquidity, false);
         }
         return 0;
     }

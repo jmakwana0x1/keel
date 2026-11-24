@@ -105,7 +105,7 @@ function contribution(uint128 liquidity, int24 lower, int24 upper, int24 anchor,
 | Kind | What |
 |---|---|
 | Differential | `measure()` against the real `PoolManager` at **zero tolerance**, both directions, across fee tiers and tick spacings |
-| Differential | `contribution()` against `measure(book) − measure(book minus band)`, zero tolerance, across band geometries including bands past the target and bands entirely above it |
+| Differential | `contribution()` against `measure(book) − measure(book minus band)`, zero tolerance, across band geometries including bands past the target and bands entirely above it. *Amended at Gate 1 (D1.2): zero tolerance is impossible for the two-walk difference; the closed form is diffed against an exact rational reference instead.* |
 | Fuzz | Swap sizes spanning the `MAX_STEPS` boundary, both swap directions, both exact-in and exact-out shapes |
 | Unit | Capped walk proves compliance; capped walk never breaches; zero-liquidity gap is free; saturation holds |
 | Gas | Table at 1, 3, 9, 64 crossings, committed to `data/` |
@@ -113,7 +113,7 @@ function contribution(uint128 liquidity, int24 lower, int24 upper, int24 anchor,
 ### Gate 1
 
 - [x] Differential against `PoolManager` passes at zero tolerance. **Also against the Python reference** (amendment 1), and the two are shown not to be redundant (D1.8)
-- [~] Closed-form contribution matches the two-walk difference: **within a stated bound, not to zero**. Integer rounding per step; worst observed 2 units; 14 of 147 non-zero cases exact (D1.2)
+- [x] Closed-form contribution: **exact to one rounding against ground truth** (= floor of the rational contribution, all 400 cases; never over-credits, direction test fails by name under a flipped rounding flag). The two-walk difference is the noisier estimator: worst 7 units from truth on 119-step walks, proven bound 128 units against the closed form (D1.2). Accepted at Gate 1 with the bound restated
 - [x] Capped-walk asymmetry has a test that fails if the direction is flipped (`test_verdictTable`, `testFuzz_cappedWalkNeverBreaches`)
 - [x] Gas table committed (`data/phase1_gas.json`), per-crossing marginal published: about 9,100–9,200 gas, priced cold
 - [x] Saturation reproduced in Solidity: all 20,700 real-book walks exact, class medians and the 17 naive-zero rows recomputed from Solidity output (amendment 3)
@@ -289,6 +289,8 @@ Live on screen: curator accepts, block proved compliant, price pushed past the b
 > **Amended again by D0.14–D0.15.** The finding to lead with: on mid-cap pools, following the price after a move costs a curator a median 11.7% of capital per quarter, so nobody does it, and depth sits at the old price for most of a day. A mandate sells that follow-commitment, priced by staleness tolerance N. Directly after it comes the credibility item: re-centring managers are found on 5 of 8 blue-chip, 3 of 4 mid-cap and 0 of 11 long-tail pools, exactly where the simulation says re-centring pays. The market is 26+ mid-cap pools across four chains (lower bound, D0.15 §5). No retainer anchor is quoted.
 >
 > **Amended by Phase 0 (D0.7–D0.10).** Beat 1 must not claim naive depth is wrong on average: it is right at the median and wrong in the tail, in both directions. Beat 2's table is the tail table, not a median. Beat 3 is on hold: D0.8 found no positive retainer in the target market, so "paid per block" has no measured price there.
+
+> **Added at Gate 1 (D1.8): the verification beat.** A rounding bug planted inside v4-core is invisible to the meter-vs-PoolManager comparison on the value side, because the pool and the meter share the bug. The PoolManager test does fail, but only through an underflow revert on the deposit side: the mutation is scored as caught, for the wrong reason. Only the spec-derived Python reference catches it on the value side. Found by running the mutation, not by reasoning about it. It shows that self-referential differential testing has a blind spot, and it is why the second reference is a gate and not a nicety.
 
 Four clauses, one each, no mechanism explained: the auction, the funding, the bounty, the bond.
 

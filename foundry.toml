@@ -21,8 +21,8 @@ gas_limit = "100000000000"
 
 # Libraries are `internal`, so their code compiles INTO the hook. One per-path restriction governs the
 # whole deployed artifact. Hydra compiled to 25,759 bytes against EIP-170's 24,576 and no test caught it.
-# The restriction on src/KeelHook.sol is added in Phase 2, when that file exists.
 additional_compiler_profiles = [{ name = "size", via_ir = true, optimizer = true, optimizer_runs = 200 }]
+compilation_restrictions = [{ paths = "src/KeelHook.sol", optimizer_runs = 200 }]
 
 [profile.default.invariant]
 runs = 192

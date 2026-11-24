@@ -95,7 +95,7 @@ These are settled. Do not relitigate them mid-session.
 
 Both were found in review after the design was written. Do not reintroduce either.
 
-**Contribution is closed-form, not a second walk.** The meter targets a fixed *price*, so the same ticks are traversed with and without the curator, and each step's input is linear in that step's liquidity. Verified to zero relative error:
+**Contribution is closed-form, not a second walk.** The meter targets a fixed *price*, so the same ticks are traversed with and without the curator, and each step's input is linear in that step's liquidity. In integers the closed form rounds once, down: it equals `floor` of the real-valued contribution in every tested case (`data/phase1_contribution.json`, against an exact rational reference), so it never over-credits. The two-walk difference is the noisier estimator: one rounding per step, worst observed 7 units from truth on deep walks, proven bound `MAX_STEPS = 128` units against the closed form. Relative error below 1e-16 at amounts near 1e18; **not** zero absolute error (D1.2):
 
 ```
 contribution = L_c · ( √p(min(target, bandUpper)) − √p(max(anchor, bandLower)) )

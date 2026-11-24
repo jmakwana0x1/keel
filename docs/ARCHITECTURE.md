@@ -454,16 +454,33 @@ The meter's step cap counts word-boundary steps as well as tick crossings. Acros
 
 **Rejected:** 64, inherited from Hydra. It was sized for a walk on the swap path and would turn a routine ±10% measurement into an inconclusive one.
 
-## D1.2 — The closed-form contribution is exact in real numbers and bounded in integers (2026-11-24)
+## D1.2 — The closed form is the exact estimator: one rounding against ground truth; the two-walk difference is the noisy one (2026-11-24, revised at Gate 1)
 
-`CLAUDE.md` records the contribution formula as "verified to zero relative error". That verification was done in floating point. In integer arithmetic the walk rounds every step's input **up**, so the two-walk difference (book with the band minus book without it) can exceed the closed form, which rounds down, by at most **one unit per step** of the walk with the band. The Phase 1 differential asserts that bound and reports how often the error is exactly zero. A claim of agreement to the wei would be false. This is the bound, stated (rule 7).
+**First framing, retracted.** The Gate 1 draft called the closed form "exact in real numbers, bounded in integers" and published a worst error of 2 units. Both were wrong in emphasis, and the 2 was misleading:
+- The 2 came from a case set whose deepest walk had **9** steps. The bound that was asserted is per step, and `MAX_STEPS = 128` while Phase 0's real books need up to 97 steps at ±10%. A tight empirical figure from shallow cases does not stand in for the bound.
+- The comparison was framed as "closed form approximates walks". It is the other way round.
 
-**Measured** (`data/phase1_contribution.json`, 400 deterministic cases on the real PoolManager, plus 2,000 fuzz runs):
-- **Exactness:** of 147 non-zero contributions, **14** match the two-walk difference to the unit.
-- **Worst error:** 2 units, against an asserted bound of the walks' step counts (max 9 steps with the band).
-- **Coverage:** bands past the target (159 cases) and entirely outside the walked range (253) are both covered.
+**Ground truth.** T, the real-valued contribution on the protocol's own Q96 tick prices, computed in `Fraction` arithmetic by `sim/ffi_contribution.py`. That script uses the spec-derived `sqrt_at_tick` from `depth_reference.py` and its own clamping, written from this file's formula and not from `DepthLib`.
 
-The `CLAUDE.md` phrase "verified to zero relative error" holds only as *relative* error (2 units in an amount of order 1e18). It should not be read as exact.
+**What is shown, and what is merely argued.**
+
+| Estimator | Roundings | Against T | Status |
+|---|---|---|---|
+| Closed form `contribution()` | one, **down** | `= floor(T)`: never over-credits, error < 1 unit | argued from the identities `floor(floor(x/b)/a) = floor(x/(ab))` and `mulDiv` rounding down; **tested** equal to `floor(T)` on all 400 artifact cases and in 2 × 500 fuzz runs (2,000 each under CI) over the full tick range and full `uint128` liquidity |
+| Two-walk difference | one per step, **up**, in each walk | in `(T − steps(without), T + steps(with))` | argued: every step ends on a tick price or the target, so a walk is `Σ ceil(x_i)`; **tested** on every case |
+| Two-walk vs closed | — | `|diff − closed| ≤ max(steps(without) − 1, steps(with)) ≤ MAX_STEPS = 128` units | follows from the two rows above; asserted per case |
+
+Not "proved": no Halmos run backs these (the claim discipline reserves that word). The 512-bit products in the token0 comparison make them a solver stress case. Recorded for Phase 5.
+
+**Measured** (`data/phase1_contribution.json`):
+- **Shallow:** 300 random books, at most 8 steps. Closed form = floor(T) in 300 of 300. Two-walk vs closed: worst 2 units.
+- **Deep:** 100 ladder books, 50–116 rungs, up to **119 steps**. Closed form = floor(T) in 100 of 100. Two-walk vs closed: worst **6** units; two-walk vs truth: worst **7**.
+- The two-walk error grows with depth, as the bound says it should. The closed form's error does not grow.
+- **Relative size:** at amounts near 1e18, 7 units is 7e-18. Even the 128-unit proven bound stays below 1e-16. Economically irrelevant, but it is the number published, not the 2.
+
+**The direction test is what a mandate depends on.** `testFuzz_contributionNeverOverCredits` asserts `closed ≤ T`. It is asserted against the rational reference, not against the walks: the two-walk difference can itself land below T, so `closed ≤ diff` does not follow and would be the wrong test. `testFuzz_contributionWithinOneUnitOfTruth` is deliberately blind to direction, so it keeps passing when the rounding is flipped. The mutation transcript (`data/verification.md`) shows the split: flipping either `false` flag fails the direction test by name, while the one-unit test and the two-walk test keep passing.
+
+**Rejected:** publishing the two-walk agreement as the accuracy figure. It measures the noisier estimator against the better one, and its empirical maximum depends on how deep the case set happens to go.
 
 ## D1.3 — Carried into the Phase 2 spec: staleness, breach and the timing adversary (2026-11-24)
 
@@ -548,3 +565,111 @@ From the Phase 1 mutation transcript (`data/verification.md`):
 **Consequence:** the Python differential is a required gate, not a cross-check. It runs in CI under `profile.ci`.
 
 **Rejected:** dropping the FFI suite to save CI time. It is the only line of defence against a defect in code shared with the pool.
+
+---
+
+# Phase 2 — mandate, prove, bond
+
+## D2.1 — What a proof decides: the curator's contribution pays, the pool meter breaches (2026-11-24)
+
+A mandate names a pool, a half-width `x` (bps) and a depth target per side: `depth1` in token1 to push the price up by `x`, and `depth0` in token0 to push it down by `x`. A target of zero means that side is not mandated. The anchor is **spot at the proof block**. Targets are `spot·√(1 ± x)` in sqrt price. If clamping to the protocol bounds would move a target, the measurement is not at the stated `x`, and the proof is **UNUSABLE** (rule 1).
+
+Per mandated side:
+1. **Curator contribution `c`.** Computed by `DepthLib.contributionAt` over the mandate's hook-owned bands (salt `keccak(mandateId)`), from spot to the target. If `c ≥ target`, the side is **COMPLIANT**, and no walk runs. This is the cheap path.
+2. **Otherwise the pool meter** (`DepthLib.walk`, `depthTarget = target`):
+   - `proven`: the pool *is* deep enough, but not through this curator. The side is **INCONCLUSIVE**: the issuer has the depth, the curator is not paid for someone else's, and nobody is slashed.
+   - `capped` or `exhausted`: **INCONCLUSIVE**. A lower bound that falls short proves nothing (rule 1).
+   - anchor mismatch: **UNUSABLE**.
+   - otherwise **BREACH**: the pool is short, and so is the curator.
+
+Combined over the sides: any UNUSABLE side makes the proof UNUSABLE; otherwise any BREACH makes it BREACH; otherwise COMPLIANT only if every mandated side is COMPLIANT; otherwise INCONCLUSIVE.
+
+**Why both.**
+- Paying on contribution under a known salt is what makes payment JIT-immune (CLAUDE.md: credit the right mechanism). Depth someone adds at the sample from an unrelated address never pays this curator.
+- Breaching on the pool meter means a curator is slashed only when the issuer actually lacks depth, measured exactly, with the capped-walk asymmetry intact.
+- `c ≤ pool depth` always holds (closed form = floor of truth, which is at most the walk). So "curator compliant" and "pool breach" can never both be true.
+
+**Rejected:**
+- *Pool depth alone:* it pays a curator for others' depth and is JIT-able at the sample.
+- *Contribution alone, including for breach:* it slashes a curator while the pool is in fact deep, which harms no issuer, and it discards the capped-walk asymmetry that Phase 1 built.
+
+## D2.2 — Payment: one block's retainer per credited compliant proof (2026-11-24)
+
+- A COMPLIANT proof at block b pays exactly **one** block's retainer, at most once per block per mandate. That is the literal form of the invariant *paid blocks ⊆ proved-compliant blocks*.
+- **A compliant proof is credited only if the position was untouched in that block before it.** A proof in a block where the mandate was reshaped earlier neither pays nor closes a shortfall window. A BREACH proof in such a block still counts: the curator is short now.
+- **A reshape after a credited proof in the same block voids that credit.** The block's retainer returns to escrow, and a shortfall window the proof had closed is reopened at its original block.
+- Together these mean a credited block had the scored liquidity in place for the whole block. Depth added at the sample and pulled after (adversary row 1) earns nothing.
+
+**Consequence, stated:** pay scales with proving cadence. A curator proves every block it wants paid. That is cheap on the target chain and cheap on the compliant path, which runs no walk (gas in the README).
+
+**Rejected:** paying the interval since the previous proof. It pays for blocks nobody observed and breaks the invariant.
+
+## D2.3 — Staleness and breach, as specified in D1.3 (2026-11-24)
+
+Built as specified:
+- `stalenessBlocks` N ∈ [`MIN_STALENESS_BLOCKS` = 300, `MAX_STALENESS_BLOCKS` = 7,200], checked at post.
+- The first BREACH proof opens a shortfall window and emits `ShortfallOpened`.
+- A credited COMPLIANT proof closes the window. INCONCLUSIVE and UNUSABLE proofs leave it unchanged.
+- A BREACH proof at least N blocks after the window opened, with the window still open, finalises the breach.
+- Proofs after `endBlock` are refused, so a window still open at the end never finalises.
+- **The bounds are in blocks of the deploy chain.** D0.15 measured 300 and 7,200 *mainnet* blocks, which is 1 h and 24 h. On a 1-second chain, 300 blocks would be 5 minutes, inside the measured loss-everywhere regime. So the bounds are constructor immutables, `MIN_STALENESS_BLOCKS` and `MAX_STALENESS_BLOCKS`. The deploy script converts the measured durations at the chain's block time. They are still immutable at deploy and not governable.
+
+## D2.4 — Where value sits and how it leaves (2026-11-24)
+
+**Escrow.** The issuer's retainer is held as ERC-6909 claims owned by the hook inside the PoolManager. No token balance is held between transactions.
+- **Accrual:** each credited block moves `retainerPerBlock` from `escrow` to `accrued`.
+- **Vesting:** `accrued` vests to the curator only at SETTLED.
+
+**Slash** (breach finalised) takes **accrued value only**:
+- **Bounty:** `accrued · BOUNTY_BPS / 10_000` to the closing prover, with `BOUNTY_BPS = 2_000`. So the bounty is strictly below the donation whenever anything accrued.
+- **Donation:** the rest is donated to in-range LPs through `PoolManager.donate`.
+- **The Hydra defect is guarded.** `donate` reverts with zero active liquidity. If the pool has none, the amount is parked in `pendingDonation` and anyone can flush it later. `prove()` is off the swap path, but it follows the same rule.
+- **Remaining escrow** is refunded to the issuer, who did not receive the service.
+
+**One exit site.** Every outflow (vesting, bounty, refund) goes through `_release`, the only function that moves claims out of the hook. Each caller is a state transition reached by proofs or by the clock.
+
+**Rejected:** streaming vested pay during the term plus a separately sized token bond (`PENALTY_MULTIPLE`). With vesting at settlement, a defaulting curator forfeits everything accrued. With D2.5's frozen principal, a default also forfeits the principal. That is a larger penalty than any oracle-sized bond, and it needs no price to size it.
+
+## D2.5 — Positions, the bond, and what a slash leaves behind (2026-11-24)
+
+**Mandate bands.**
+- Up to `MAX_BANDS = 4` ranges under salt `keccak(mandateId)`, minted at accept.
+- They are reshapeable by the curator while ACTIVE. Every negative delta goes through one function, `_burnMandate`, which checks curator and ACTIVE itself.
+- **Settlement:**
+  - After `endBlock` the curator calls `settle()`. That withdraws the bands (the one negative site), vests `accrued`, refunds the remaining escrow, and sets the mandate to SETTLED.
+  - After `endBlock + SETTLE_GRACE_BLOCKS` (7,200) anyone may settle. The curator's bands are then frozen, because no negative path exists outside ACTIVE.
+
+**What a slash leaves (flagged).** The architectural invariant allows negative deltas only while ACTIVE, so after SLASHED the curator's bands can never be withdrawn. They stay in the pool as permanent depth. The slash itself takes accrued value only and removes no liquidity from the pool, but the curator's principal is lost to them. That loss, not the accrued retainer, is the economic penalty. It follows from the settled invariant. The only way out is a second negative-delta path reachable outside ACTIVE, which rule 2 rules out.
+
+**Bond.**
+- Placed at accept under `BOND_SALT`, at the mandate's **first** band (D1.6: the passive comparator), sized at least the issuer's `minBondLiquidity`.
+- Minted once through the single positive site and never touched again. Its principal is never returned. It is the keel: permanent depth bought as the price of entry.
+- **Bond fees.** `BOND_SALT` positions at the same band merge across mandates. So fees that v4 surfaces when a later bond mints at the same band are not anyone's to keep, and go to `pendingDonation`. D1.6 reads bond fees from `feeGrowthInside`, not from collections.
+
+## D2.6 — Phase 2 scope cuts, each with its phase (2026-11-24)
+
+| Cut | Why | Lifted in |
+|---|---|---|
+| At most one live (POSTED or ACTIVE) mandate per pool | Bounded state, no cross-mandate scoring | Phase 4 (auction) |
+| Escrow currencies must be ERC-20 (native refused at post) | One settlement path | if needed |
+| `beforeSwap` returns a zero delta (permission bit set now, because bits are fixed at address mining) | Skim is Phase 3 (D1.4) | Phase 3 |
+| No TWAP ring yet | Only D1.6's mark needs it | with D1.6 |
+| Fixed retainer rate | — | Phase 4 |
+
+## D2.7 — EIP-170: the meter becomes its own immutable contract (2026-11-24)
+
+**What happened.** The first build of `KeelHook` was **32,004** bytes at `optimizer_runs = 44M`, against the 24,576-byte limit: the Hydra defect again, caught on day one by `forge build --sizes`. The per-path size profile (`optimizer_runs = 200` on `src/KeelHook.sol`) brought it to **23,705**. That left 871 bytes for the Phase 3 skim and the D1.6 reserve, which is not enough.
+
+**Decision.**
+- `DepthLib.walk` and the per-pool `V4TickSource` deployment move into **`KeelMeter`**: immutable, ownerless and stateless, apart from a write-once registry of tick sources. Its address is fixed in the hook's constructor, which checks that it points to the same PoolManager.
+- The hook reaches it by plain `CALL`, so there is no `delegatecall` and no proxy.
+- The closed-form contribution stays in the hook.
+
+**Sizes after the split:** `KeelHook` **19,925** bytes (4,651 under EIP-170), `KeelMeter` 8,322.
+
+**What did not change.** The walk is the same `DepthLib.walk` code that Phase 1 diffed at zero tolerance, called with the same parameters. Its cost is one extra external call (about 2.6k gas cold) on the breach path only. The compliant path never calls the meter.
+
+**Rejected:**
+- Fewer optimizer runs: already at 200.
+- Stripping events and views: observability is how watchers find breaches.
+- Proxies, diamonds and library linking: proxies and `delegatecall` are banned by the architectural invariants. Public-library linking is `delegatecall`.
