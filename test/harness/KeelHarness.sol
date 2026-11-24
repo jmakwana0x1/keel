@@ -42,12 +42,17 @@ abstract contract KeelHarness is Deployers {
 
     uint256 internal blk; // explicit block counter
 
+    /// @notice The artifact deployed at the flagged address. Overridden by probes that expose an internal site.
+    function _hookArtifact() internal pure virtual returns (string memory) {
+        return "src/KeelHook.sol:KeelHook";
+    }
+
     function _setUpKeel() internal {
         deployFreshManagerAndRouters();
         deployMintAndApprove2Currencies();
         meter = new KeelMeter(manager);
         address at = address(FLAGS | (uint160(0x4444) << 144));
-        deployCodeTo("src/KeelHook.sol:KeelHook", abi.encode(manager, meter, uint32(300), uint32(7_200)), at);
+        deployCodeTo(_hookArtifact(), abi.encode(manager, meter, uint32(300), uint32(7_200)), at);
         hook = KeelHook(at);
         (pkey, pid) = initPool(currency0, currency1, IHooks(at), 3000, 60, SQRT_PRICE_1_1);
         address[3] memory actors = [issuer, curator, watcher];

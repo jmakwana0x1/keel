@@ -45,7 +45,7 @@ MUTATIONS = {
 }
 
 # Phase 2: one planted edit per lifecycle guarantee, at the one site where it lives.
-SUITES2 = "KeelHookTest|MandateLibTest|DepthLibUnitTest|DepthBoundaryTest"
+SUITES2 = "KeelHookTest|NegativeSiteTest|MandateLibTest|DepthLibUnitTest|DepthBoundaryTest"
 MUTATIONS2 = {
     "negative site ungated": (HK, [(
         "if (actor != m.curator || m.status != MandateLib.Status.ACTIVE) revert NotCurator();",
