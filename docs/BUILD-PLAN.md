@@ -112,11 +112,12 @@ function contribution(uint128 liquidity, int24 lower, int24 upper, int24 anchor,
 
 ### Gate 1
 
-- [ ] Differential against `PoolManager` passes at zero tolerance
-- [ ] Closed-form contribution matches the two-walk difference to zero error
-- [ ] Capped-walk asymmetry has a test that fails if the direction is flipped
-- [ ] Gas table committed, per-crossing marginal cost published
-- [ ] Saturation reproduced in Solidity, matching the Phase 0 Python result
+- [x] Differential against `PoolManager` passes at zero tolerance. **Also against the Python reference** (amendment 1), and the two are shown not to be redundant (D1.8)
+- [~] Closed-form contribution matches the two-walk difference: **within a stated bound, not to zero**. Integer rounding per step; worst observed 2 units; 14 of 147 non-zero cases exact (D1.2)
+- [x] Capped-walk asymmetry has a test that fails if the direction is flipped (`test_verdictTable`, `testFuzz_cappedWalkNeverBreaches`)
+- [x] Gas table committed (`data/phase1_gas.json`), per-crossing marginal published: about 9,100–9,200 gas, priced cold
+- [x] Saturation reproduced in Solidity: all 20,700 real-book walks exact, class medians and the 17 naive-zero rows recomputed from Solidity output (amendment 3)
+- [x] Three Phase 0 mutations ported, transcript in `data/verification.md` (amendment 2)
 
 ---
 

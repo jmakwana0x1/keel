@@ -1,0 +1,45 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 44_000_000
+via_ir = true
+bytecode_hash = "none"
+ffi = true                      # the Python differential reference (sim/ffi_walk.py)
+fs_permissions = [
+  { access = "read-write", path = "./data" },
+  { access = "read", path = "./sim" },
+]
+fuzz = { runs = 10_000 }
+# The saturation reproduction replays 2,070 real books inside one test frame. That is a simulation
+# budget, not a claim about any real transaction.
+gas_limit = "100000000000"
+
+# Libraries are `internal`, so their code compiles INTO the hook. One per-path restriction governs the
+# whole deployed artifact. Hydra compiled to 25,759 bytes against EIP-170's 24,576 and no test caught it.
+# The restriction on src/KeelHook.sol is added in Phase 2, when that file exists.
+additional_compiler_profiles = [{ name = "size", via_ir = true, optimizer = true, optimizer_runs = 200 }]
+
+[profile.default.invariant]
+runs = 192
+depth = 64
+fail_on_revert = false
+
+[profile.ci]
+fuzz = { runs = 100_000 }
+
+[profile.ci.invariant]
+runs = 1024
+depth = 128
+
+[profile.halmos]
+# Do NOT override `out` here. Halmos scans the default out/ regardless, so a custom out dir sends it to
+# artifacts written by ordinary forge test runs, which carry no AST. It skips every one of them and
+# reports "No tests" while exiting 0 — success-shaped silence.
+src = "src"
+test = "test/halmos"
+via_ir = true

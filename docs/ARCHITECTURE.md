@@ -443,3 +443,108 @@ DefiLlama's yields API (fetched 2026-11-24, snapshot committed as `data/phase0_m
 The simulation says re-centring pays on blue-chip (N ≥ 300) and loses on the target pools. Looked for independently, owners who actually re-centre exist on **5 of 8 blue-chip, 3 of 4 mid-cap and 0 of 11 long-tail pools**, at about the slow latency the simulation favours. A model and revealed behaviour agreeing pool by pool is the strongest credibility item in Phase 0. It goes in the pitch directly after the finding.
 
 **Phase 0 is closed. Phase 1 (the meter) may start.** It is unaffected by every amendment here. Phase 2 inherits the staleness tolerance, and `ReserveLib` inherits the re-centring-gap pricing.
+
+---
+
+# Phase 1 and the carried Phase 2 spec
+
+## D1.1 — `MAX_STEPS = 128` (2026-11-24)
+
+The meter's step cap counts word-boundary steps as well as tick crossings. Across the 20,700 Phase 0 walks on real books out to ±10%, the maximum was 97 steps and p99 was 96. Hydra's 64 would cap 8.6% of ±10% walks and every ±10% measurement on dense books. 128 covers all of them. The meter runs in `prove()`, off the swap path, so the larger budget does not touch swap gas. The gas table (`data/phase1_gas.json`) prices it.
+
+**Rejected:** 64, inherited from Hydra. It was sized for a walk on the swap path and would turn a routine ±10% measurement into an inconclusive one.
+
+## D1.2 — The closed-form contribution is exact in real numbers and bounded in integers (2026-11-24)
+
+`CLAUDE.md` records the contribution formula as "verified to zero relative error". That verification was done in floating point. In integer arithmetic the walk rounds every step's input **up**, so the two-walk difference (book with the band minus book without it) can exceed the closed form, which rounds down, by at most **one unit per step** of the walk with the band. The Phase 1 differential asserts that bound and reports how often the error is exactly zero. A claim of agreement to the wei would be false. This is the bound, stated (rule 7).
+
+**Measured** (`data/phase1_contribution.json`, 400 deterministic cases on the real PoolManager, plus 2,000 fuzz runs):
+- **Exactness:** of 147 non-zero contributions, **14** match the two-walk difference to the unit.
+- **Worst error:** 2 units, against an asserted bound of the walks' step counts (max 9 steps with the band).
+- **Coverage:** bands past the target (159 cases) and entirely outside the walked range (253) are both covered.
+
+The `CLAUDE.md` phrase "verified to zero relative error" holds only as *relative* error (2 units in an amount of order 1e18). It should not be read as exact.
+
+## D1.3 — Carried into the Phase 2 spec: staleness, breach and the timing adversary (2026-11-24)
+
+Recorded now so Phase 2 needs no rework. Basis: D0.15 §3.
+
+- **Mandate struct** gains `uint32 stalenessBlocks` (N), chosen at post time. It is bounded by immutable `MIN_STALENESS_BLOCKS = 300` and `MAX_STALENESS_BLOCKS = 7_200`, and a mandate outside the bounds is refused at post.
+- **Compliance** is one proof: a `prove()` whose verdict is COMPLIANT.
+- **Breach** needs two BREACH proofs at least N blocks apart, with **no COMPLIANT proof between them**. INCONCLUSIVE and UNUSABLE proofs neither open nor close the window. The first BREACH proof opens a *shortfall window* and emits an event. Any COMPLIANT proof inside the window closes it. A BREACH proof at least N blocks after the opening, with the window still open, finalises the breach. "One breach per block" still applies.
+- **The retainer schedule is a function of N.** A shorter N is a stronger promise and prices higher. The measured basis is the delay curve (`data/phase0_recentre.csv`; summary in `phase0_results.md` §0.5).
+- **New Gate 2 adversary row: the timing watcher.** A watcher times two short proofs around a brief compliant stretch that nobody proved.
+  - **Mitigations, named now and built and tested in Phase 2:**
+    - The opening proof emits `ShortfallOpened(mandateId, block)`, which gives the curator N blocks of notice.
+    - `prove()` is permissionless, and cheap on the compliant path because of early termination, so a rebuttal costs the curator one cheap call.
+    - The closing proof must be at least N after the opening. Any COMPLIANT proof inside the window resets it.
+  - **Residual assumption, stated:** liveness. A curator who is compliant but never proves inside N blocks can be slashed for a stretch that was in fact compliant. The test: a watcher who opens a window, waits out a compliant stretch, and closes it, must fail whenever any compliant proof exists inside the window, and must succeed only when none does.
+
+## D1.4 — Owner decision: the skim is restored, capped at the discount-robust configuration (2026-11-24)
+
+**Amends D0.10 §3 and D0.15**, which called the funding branch moot because D0.8 had removed the retainer. Phase 0.5 restored the retainer: following the price costs a measured −11.73% of capital per quarter on the valid subset. So the premise of "moot" is gone.
+
+**Decision.** Build the fee skim at the one configuration that clears self-funding break-even at **every** reverse-causality discount tested (D0.10: d down to 0.25, i.e. surviving a 75% discount of ε = 0.91): maximum skim **s = 5% (500 bps)** and curator share **φ = 10%**.
+- `MAX_CURATOR_SHARE_BPS = 1000` and `MAX_SKIM_BPS = 500`, both immutable.
+- A mandate that would push a curator's share past the cap is refused at post.
+- The README states the measured region next to the feature: break-even 0.167 against an ε whose 95% CI lower bound is 0.81 undiscounted and 0.20 at a 75% discount. The estimate is associational, not causal.
+
+**Conservative means capped, not deleted.** The ε caveat (D0.5, D0.10) travels with the feature.
+
+## D1.5 — Owner decision: long-tail stays a supported parameter; its pricing gap is a stated limitation (2026-11-24)
+
+**Amends D0.15 §1's scope.** D0.15 found that a 1%-of-pool *simulated* band cannot price a long-tail mandate: too big breaks price-taking, too small is eaten by gas. That is a limit of the measurement, not of the mechanism. A real long-tail mandate would be sized to what the issuer wants guaranteed, possibly half the pool. D0.11 also found the strongest use case on long-tail: after a large move, the whole book sits stranded at the old price for most of a day.
+
+- The hook accepts long-tail pools.
+- The README carries a **Limitations** section: *no measured price exists for long-tail mandates. The reserve there starts from a stated prior (D1.6) and is replaced by the pool's own realised cost as mandates complete.*
+
+## D1.6 — The self-pricing reserve: the book prices its own commitment (2026-11-24, spec; built after Gate 1)
+
+**Idea.** Every comparable design takes its pricing parameters from a deployer. This one derives them from the book it sits on: the reserve for the next mandate on a pool is what following the price actually cost the curators who did it there.
+
+**Measurement per completed mandate epoch.**
+- The mandate position (salt `keccak(mandateId)`) is the re-centring curator R.
+- The bond position (`BOND_SALT`) is mint-only and never reshaped. **It is placed at the mandate's initial band**, which makes it exactly the passive curator P of Phase 0.5, live on the same pool over the same blocks.
+- At settlement the hook computes, per unit of liquidity:
+  - `realisedCost = [(V_P + F_P) − (V_R + F_R)] / V_0`, normalised per 7,200 blocks.
+  - `F` is fees, read exactly from each live position's `feeGrowthInside` delta.
+  - `V` is position value marked at the `TwapLib` price, not spot, so a single-block price push cannot move the mark.
+  - `V_0` is the value at the epoch's opening.
+- Both legs are in hook state, and no counterfactual replay is needed.
+
+**Reserve.** For the next mandate on the pool, the reserve is the **median of `realisedCost` over the last `RESERVE_WINDOW = 7` completed, non-slashed mandates**, at most one per curator address. It is stored in a fixed 7-slot ring, so it is bounded (rule 5).
+
+**Cold start.**
+- With fewer than 4 samples, the reserve is a **published class prior**: an immutable table from Phase 0.5's delay curve at the mandate's N (mid-cap valid subset; long-tail uses the mid-cap figure as a stated proxy).
+- It is returned with `isPrior = true` and emitted as such, so a prior is never presented as a measurement (rule 1).
+
+**Properties.** It is a pure function of measured state: no block number, no chooser, no governance. It is the `SplitLib` governor pattern applied to pricing. It also closes the long-tail gap of D1.5 by construction: a pool too thin to simulate still reports what the commitment cost in it.
+
+**Manipulation surface, noted now and closed by a test later:**
+1. **Self-inflation.** A curator deliberately loses money (re-centres at the worst moments, or trades against its own band) to raise the next reserve, then bids for that mandate.
+   - Bounded by: the median over 7 distinct curators, so moving it takes control of 4 samples; at most one sample per address; slashed mandates excluded; and the inflation costs real money, because the bond leg is real.
+   - Test: an attacker controlling k of 7 samples moves the reserve by nothing for k < 4.
+   - Residual: Sybil curators. Distinct addresses are cheap, so the real bound is the attacker's realised loss per sample against the retainer uplift it buys. The test must show that loss exceeds the uplift.
+2. **Mark manipulation.** The TWAP mark inherits `TwapLib`'s manipulation cost (Hydra).
+3. **Deflation by a competitor**, symmetric to 1. Same bound.
+
+## D1.7 — The economic test ports Phase 0.5 to Foundry (2026-11-24, spec; built after Gate 1)
+
+`test/demo/Mandate.t.sol` replays a real swap tape exported from Phase 0 (UNI/WETH 0.3%, mid-cap, 90 days) against a real PoolManager with three curators of equal capital:
+
+- **passive:** band placed once, never moved.
+- **re-centring:** voluntary, using the measured optimal delay.
+- **mandated:** re-centres within the mandate's N, or is slashed by `prove()`.
+
+It reports realised depth at ±x on every block as a **distribution**, with the **5th percentile** as the headline, not the mean, plus each curator's PnL. B (re-centring, unenforced) is the argument: it looks like C on a dashboard and differs in the tail. The curator's re-centring decision is modelled, not fixed (`VERIFICATION.md` §10).
+
+
+## D1.8 — Two references are not redundant: a v4-core rounding defect is visible only to the Python one (2026-11-24)
+
+From the Phase 1 mutation transcript (`data/verification.md`):
+- **What happened:** the two rounding mutations sit in v4-core's `SqrtPriceMath`, which the PoolManager shares. On the side where the PoolManager differential is a pure value comparison, the mutated pool and the mutated meter agree, so that differential **keeps passing**. Only the spec-derived Python reference fails, on exactly the side its Phase 0 twin did.
+- **A trap:** the PoolManager differential does fail under those mutations, but on the *other* side and by **reverting**. The same rounding governs liquidity deposits, the pool is left short of a token, and paying it out underflows (`Panic(0x11)`). A suite with only the PoolManager reference would have scored this mutation as caught, for the wrong reason.
+
+**Consequence:** the Python differential is a required gate, not a cross-check. It runs in CI under `profile.ci`.
+
+**Rejected:** dropping the FFI suite to save CI time. It is the only line of defence against a defect in code shared with the pool.

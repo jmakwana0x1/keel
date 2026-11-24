@@ -1,0 +1,1 @@
+{"cases":400,"exact_to_the_unit":267,"exact_among_non_zero_contributions":14,"max_abs_error_units":2,"max_steps_with_band":9,"non_zero_contribution":147,"bands_past_target":159,"bands_outside_range":253,"bound":"|two-walk difference - closed form| <= steps(without band) + steps(with band), D1.2"}
