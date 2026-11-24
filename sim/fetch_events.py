@@ -44,22 +44,27 @@ def main(workers: int = 3, batch: int = 6):
     EV.mkdir(parents=True, exist_ok=True)
     STAGE.mkdir(parents=True, exist_ok=True)
     tmp = {a: open(STAGE / f"{a}.jsonl", "w") for a in addrs}
+    own = {a: open(STAGE / f"{a}.owners.jsonl", "w") for a in addrs}
     counts = {a: [0, 0] for a in addrs}
     with ThreadPoolExecutor(workers) as ex:
         for k in range(0, len(chunks), batch):
             part = chunks[k:k + batch]
             # in-order results, so per-pool streams stay sorted across chunks
             for logs in ex.map(lambda c: get_logs(addrs, topics, max(c[0], frm), c[1]), part):
-                rows = sorted((decode(l), l["address"].lower()) for l in logs if not l.get("removed"))
-                for ev, a in rows:
+                rows = sorted((decode(l), l["address"].lower(), l) for l in logs if not l.get("removed"))
+                for ev, a, raw in rows:
                     tmp[a].write(json.dumps(ev) + "\n")
+                    if ev[2] != "S":  # owner stream for the managed-position control group (D0.12)
+                        own[a].write(json.dumps(ev + ["0x" + raw["topics"][1][-40:], raw["transactionHash"]]) + "\n")
                     counts[a][0] += 1
                     counts[a][1] += ev[2] == "S"
                 del logs, rows
             print(f"{min(k + batch, len(chunks))}/{len(chunks)}", flush=True)
     for a, f in tmp.items():
         f.close()
+        own[a].close()
         os.replace(STAGE / f"{a}.jsonl", EV / f"{a}.jsonl")
+        os.replace(STAGE / f"{a}.owners.jsonl", EV / f"{a}.owners.jsonl")
         print(a, counts[a][0], counts[a][1], "swaps")
 
 

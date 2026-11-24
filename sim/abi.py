@@ -10,7 +10,7 @@ SEL = {
     "getPool": "1698ee82", "slot0": "3850c7bd", "liquidity": "1a686502", "tickSpacing": "d0c93a7c",
     "fee": "ddca3f43", "token0": "0dfe1681", "token1": "d21220a7", "tickBitmap": "5339c296",
     "ticks": "f30dba93", "symbol": "95d89b41", "decimals": "313ce567", "aggregate3": "82ad56cb",
-    "quoteExactOutputSingle": "bd21704a",
+    "quoteExactOutputSingle": "bd21704a", "quoteExactInputSingle": "c6a5026a",
 }
 TOPIC = {
     "Swap": "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",

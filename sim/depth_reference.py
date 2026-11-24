@@ -176,3 +176,61 @@ def naive(book: Book, limit: int) -> Fraction:
     if limit > sp:
         return Fraction(liq * (limit - sp), Q96)
     return Fraction(liq * Q96 * (sp - limit), sp * limit)
+
+
+# ---- exact-input swap (Phase 0.5: the re-centring curator's rebalancing swap) --------------------
+
+def _mul_div_up(a: int, b: int, d: int) -> int:
+    return -(-(a * b) // d)
+
+
+def _next_sqrt_from_amount0_up(sp: int, liq: int, amount: int) -> int:
+    """Price after adding `amount` of token0 (price falls), rounded up."""
+    if amount == 0:
+        return sp
+    n1 = liq << 96
+    product = amount * sp
+    if product < (1 << 256):  # the spec's non-overflow branch
+        denom = n1 + product
+        if denom >= n1:
+            return _mul_div_up(n1, sp, denom)
+    return _div_up(n1, n1 // sp + amount)
+
+
+def _next_sqrt_from_amount1_down(sp: int, liq: int, amount: int) -> int:
+    """Price after adding `amount` of token1 (price rises), rounded down."""
+    return sp + (amount << 96) // liq
+
+
+def exact_in(book: Book, amount: int, zero_for_one: bool) -> tuple[int, int]:
+    """Exact-input swap of `amount` (gross, fee included) through the book, to the protocol price bound.
+    Returns (amount_out, sqrt_price_after). The book is not mutated."""
+    sp, tick, liq = book.sqrt_price, book.tick, book.liquidity
+    limit = MIN_SQRT + 1 if zero_for_one else MAX_SQRT - 1
+    rem, out, f = amount, 0, book.fee
+    while rem != 0 and sp != limit:
+        nxt, init = book.next_initialized(tick, zero_for_one)
+        nxt = max(MIN_TICK, min(MAX_TICK, nxt))
+        s_next = sqrt_at_tick(nxt)
+        target = limit if (s_next < limit if zero_for_one else s_next > limit) else s_next
+        rem_less_fee = rem * (1_000_000 - f) // 1_000_000
+        a_in = amount0_delta(target, sp, liq, True) if zero_for_one else amount1_delta(sp, target, liq, True)
+        if rem_less_fee >= a_in:
+            s_new = target
+        else:
+            s_new = (_next_sqrt_from_amount0_up(sp, liq, rem_less_fee) if zero_for_one
+                     else _next_sqrt_from_amount1_down(sp, liq, rem_less_fee))
+        if s_new != target:
+            a_in = amount0_delta(s_new, sp, liq, True) if zero_for_one else amount1_delta(sp, s_new, liq, True)
+        a_out = amount1_delta(s_new, sp, liq, False) if zero_for_one else amount0_delta(sp, s_new, liq, False)
+        fee_amt = rem - a_in if s_new != target else _div_up(a_in * f, 1_000_000 - f)
+        rem -= a_in + fee_amt
+        out += a_out
+        sp = s_new
+        if sp == s_next:
+            if init:
+                net = book.ticks[nxt][1]
+                liq += -net if zero_for_one else net
+            tick = nxt - 1 if zero_for_one else nxt
+        # a step that stops inside a range leaves rem == 0, so the loop ends and the tick is not needed
+    return out, sp

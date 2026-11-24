@@ -231,3 +231,63 @@ Tail hours (depth more than 20% below baseline at ±1%): how much of that hour's
 | mid-cap | top_decile | 103 | -0.0586 | 0.0 | 0.2136 |
 
 Stress in the window: the largest absolute hourly log return across pools is 0.5966, and the worst peak-to-trough is -0.4663. Per-pool figures are under vol_depth.stress in phase0_results.json.
+
+## 0.5 The re-centring gap — is staying centred worth what it costs?
+
+Pre-registered in D0.12, amended before the full run in D0.13. Curator **P** never re-centres. **R_N** re-centres N blocks after spot leaves its band, rebalancing through the pool's real book (exact v3 math). Gap = R − P as a % of capital over 90 days. benefit = extra fees; cost = rebalance (pool fee + impact) + gas − market (the crystallised move against holding the option). Headline: R_300 vs P, ±5%, the 15 target pools.
+
+| Run | gap basis | median gap % | gap > 0 | gap < 0 | median benefit % | median rebalance % | median market % | median abs(benefit) % | median abs(cost) % | bands larger than pool | verdict |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| registered | gap_incl_gas | -67.6629 | 1 of 15 | 14 | -5.5776 | 25.4748 | -28.4322 | 10.3786 | 58.5653 | 12 | **priced: benefit < cost** |
+| small | gap_excl_gas | -7.6047 | 2 of 15 | 13 | 11.2813 | 3.8598 | -22.8584 | 11.2813 | 26.9008 | 1 | **priced: benefit < cost** |
+
+The registered run is outside its own validity wherever the band is larger than the pool (D0.13). Classification is read off the **small** run (band = 1% of the pool's median active liquidity, gas excluded).
+
+Small run, R_300 vs P at ±5%, per pool (registered gap shown for comparison):
+
+| Pool | class | re-centres | skipped | benefit % | rebalance % | market % | gap ex-gas % | gas USD total | capital where gas = 0.5% | registered gap % | registered band/pool | pool scale USD (±5% band = 100% of median active L) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| DAI/WETH 0.3% | blue-chip | 16 | 0 | 13.5563 | 2.0759 | -7.3565 | 4.1239 | 1.2346 | 247 | -61.063 | 2.1561 | 254,536 |
+| WBTC/USDC 0.3% | blue-chip | 11 | 0 | 8.9399 | 1.5311 | -6.2126 | 1.1962 | 6.5286 | 1,306 | 2.1463 | 0.2784 | 2,864,790 |
+| WBTC/WETH 0.05% | blue-chip | 4 | 0 | 3.7905 | 0.1487 | -0.6044 | 3.0374 | 0.4897 | 98 | 2.4937 | 0.1208 | 9,876,290 |
+| WBTC/WETH 0.3% | blue-chip | 4 | 0 | 3.5526 | 0.6324 | -0.515 | 2.4052 | 0.6021 | 120 | -6.5584 | 0.3838 | 2,298,613 |
+| WETH/USDC 0.05% | blue-chip | 14 | 0 | 15.8366 | 0.4389 | -6.674 | 8.7237 | 1.1451 | 229 | 7.9865 | 0.1095 | 7,345,405 |
+| WETH/USDC 0.3% | blue-chip | 14 | 0 | 13.9739 | 1.9108 | -5.7601 | 6.303 | 1.051 | 210 | 0.7159 | 0.1564 | 6,924,718 |
+| WETH/USDT 0.05% | blue-chip | 14 | 0 | 18.9803 | 0.4299 | -6.2004 | 12.35 | 1.1394 | 228 | -13.042 | 0.7306 | 1,766,189 |
+| WETH/USDT 0.3% | blue-chip | 16 | 0 | 14.8308 | 2.2571 | -8.0203 | 4.5535 | 6.9155 | 1,383 | 5.9319 | 0.0265 | 32,847,759 |
+| 1INCH/WETH 1% | long-tail | 5 | 0 | 9.1762 | 2.258 | -5.2589 | 1.6592 | 0.3658 | 73 | -79.742 | 619.137 | 430 |
+| APE/WETH 0.3% | long-tail | 29 | 0 | 12.0726 | 3.3198 | -14.3375 | -5.5848 | 8.8286 | 1,766 | -71.183 | 352.536 | 85 |
+| COMP/USDC 1% | long-tail | 15 | 0 | 0.9712 | 0.27 | -38.8261 | -38.125 | 6.9004 | 1,380 | -38.1991 | 3.11385e+17 | 160,239 |
+| CRV/WETH 1% | long-tail | 33 | 0 | 10.2829 | 11.7503 | -15.1505 | -16.6179 | 10.3973 | 2,079 | -71.2811 | 213.569 | 468 |
+| ENS/WETH 0.3% | long-tail | 16 | 0 | 12.7948 | 2.2031 | -12.7709 | -2.1792 | 2.8487 | 570 | -71.4564 | 12.1444 | 7,970 |
+| LDO/WETH 0.3% | long-tail | 29 | 0 | 11.1826 | 3.8598 | -22.8584 | -15.5357 | 4.6572 | 931 | -73.1315 | 4.4199 | 44,777 |
+| MKR/WETH 0.3% | long-tail | 35 | 0 | 5.332 | 4.1596 | -26.8913 | -25.7189 | 15.872 | 3,174 | -61.9742 | 3.7793 | 26,316 |
+| ONDO/WETH 0.3% | long-tail | 27 | 0 | 26.5046 | 3.7271 | -24.3813 | -1.6038 | 9.3075 | 1,862 | -58.8686 | 1.8103 | 227,966 |
+| PEPE/WETH 0.3% | long-tail | 43 | 0 | 33.9268 | 4.3868 | -37.1447 | -7.6047 | 20.9183 | 4,184 | -81.5632 | 13.2255 | 6,541 |
+| SHIB/WETH 1% | long-tail | 10 | 0 | 7.0308 | 4.3745 | -8.1944 | -5.538 | 1.3303 | 266 | -91.4491 | 63.4675 | 1,528 |
+| SPX/WETH 0.3% | long-tail | 41 | 0 | 29.773 | 4.2766 | -31.5361 | -6.0397 | 4.3563 | 871 | -67.6629 | 2.8274 | 6,174 |
+| AAVE/WETH 0.3% | mid-cap | 20 | 0 | 11.2813 | 2.6056 | -19.1878 | -10.512 | 9.9127 | 1,983 | -13.2567 | 0.1767 | 827,250 |
+| ENA/WETH 0.3% | mid-cap | 68 | 0 | 33.694 | 6.4585 | -45.2703 | -18.0348 | 18.1702 | 3,634 | -52.5078 | 1.2088 | 323,687 |
+| LINK/WETH 0.3% | mid-cap | 15 | 0 | 0.7794 | 2.2108 | -11.3939 | -12.8253 | 1.9782 | 396 | -12.7827 | 0.0184 | 2,865,077 |
+| UNI/WETH 0.3% | mid-cap | 41 | 0 | 45.773 | 5.381 | -29.1266 | 11.2654 | 10.1957 | 2,039 | 8.7904 | 0.2944 | 986,945 |
+
+Venue-independent bound: the median target-pool gap if rebalancing cost nothing at all is -3.2179% (4 of 15 pools positive). No choice of swap venue can do better than this.
+
+Control group: owners that do re-centre (D0.12 rule: non-NPM owner, burn and re-mint to a different range within 10 blocks, at least 5 times). Latency = blocks from spot leaving the burned range to the re-mint.
+
+| Class | pools with managed owners | owners | re-centre events | median owner latency (blocks) | median owner share of active L | owner fee yield / day | sim P yield / day | sim R_300 yield / day | sim gap % where managed | where not |
+|---|---|---|---|---|---|---|---|---|---|---|
+| blue-chip | 5 of 8 | 11 | 682 | 5956.0 | 0.0003 | 0.001425 | 0.001374 | 0.002911 | 4.5535 | 4.1239 |
+| mid-cap | 3 of 4 | 4 | 428 | 7480.0 | 0.0037 | 0.002212 | 0.001598 | 0.002987 | -10.512 | -18.0348 |
+| long-tail | 0 of 11 | 0 | 0 | None | None | None | None | None | None | -6.0397 |
+
+Sensitivity, small run: median gap % by class, band and N (pools with gap > 0 in brackets):
+
+| Class | ±x | N=25 | N=300 | N=1800 | N=7200 |
+|---|---|---|---|---|---|
+| blue-chip | 1% | -7.8918 (1/8) | -5.6811 (3/8) | 1.0186 (5/8) | 3.8186 (6/8) |
+| blue-chip | 5% | -4.9798 (1/8) | 4.3387 (8/8) | 8.0645 (8/8) | 9.2487 (8/8) |
+| long-tail | 1% | -23.1 (0/11) | -13.3134 (0/11) | -7.9943 (1/11) | -10.5182 (4/11) |
+| long-tail | 5% | -13.4223 (1/11) | -6.0397 (1/11) | -7.1391 (1/11) | -4.7516 (3/11) |
+| mid-cap | 1% | -15.8134 (0/4) | -18.7303 (1/4) | -7.9435 (1/4) | -11.3244 (1/4) |
+| mid-cap | 5% | -11.5615 (1/4) | -11.6687 (1/4) | -6.7567 (2/4) | -6.2687 (1/4) |

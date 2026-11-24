@@ -2165,6 +2165,809 @@
    }
   }
  },
+ "recentre": {
+  "declined_pools": [],
+  "headline": {
+   "registered": {
+    "gap_basis": "gap_incl_gas",
+    "target_pools": 15,
+    "median_gap_pct": -67.6629,
+    "pools_gap_positive": 1,
+    "pools_gap_negative": 14,
+    "median_abs_benefit_pct": 10.3786,
+    "median_abs_cost_pct": 58.5653,
+    "median_benefit_pct": -5.5776,
+    "median_rebalance_pct": 25.4748,
+    "median_market_pct": -28.4322,
+    "verdict": "priced: benefit < cost",
+    "median_gap_if_rebalance_free_pct": -37.8044,
+    "pools_positive_if_rebalance_free": 1,
+    "pools_band_larger_than_pool": 12
+   },
+   "small": {
+    "gap_basis": "gap_excl_gas",
+    "target_pools": 15,
+    "median_gap_pct": -7.6047,
+    "pools_gap_positive": 2,
+    "pools_gap_negative": 13,
+    "median_abs_benefit_pct": 11.2813,
+    "median_abs_cost_pct": 26.9008,
+    "median_benefit_pct": 11.2813,
+    "median_rebalance_pct": 3.8598,
+    "median_market_pct": -22.8584,
+    "verdict": "priced: benefit < cost",
+    "median_gap_if_rebalance_free_pct": -3.2179,
+    "pools_positive_if_rebalance_free": 4,
+    "pools_band_larger_than_pool": 1
+   }
+  },
+  "grid": {
+   "registered": {
+    "blue-chip": {
+     "1": {
+      "25": {
+       "median_gap_pct": -46.1724,
+       "pools_positive": 0,
+       "pools": 8,
+       "median_benefit_pct": 12.3476,
+       "median_cost_pct": 61.5054
+      },
+      "300": {
+       "median_gap_pct": -38.0934,
+       "pools_positive": 0,
+       "pools": 8,
+       "median_benefit_pct": 11.867,
+       "median_cost_pct": 54.2359
+      },
+      "1800": {
+       "median_gap_pct": -23.4362,
+       "pools_positive": 1,
+       "pools": 8,
+       "median_benefit_pct": 13.2012,
+       "median_cost_pct": 40.3787
+      },
+      "7200": {
+       "median_gap_pct": -13.9318,
+       "pools_positive": 1,
+       "pools": 8,
+       "median_benefit_pct": 11.5927,
+       "median_cost_pct": 25.0094
+      }
+     },
+     "5": {
+      "25": {
+       "median_gap_pct": -6.4401,
+       "pools_positive": 1,
+       "pools": 8,
+       "median_benefit_pct": 10.6726,
+       "median_cost_pct": 19.1517
+      },
+      "300": {
+       "median_gap_pct": 1.4311,
+       "pools_positive": 5,
+       "pools": 8,
+       "median_benefit_pct": 10.7821,
+       "median_cost_pct": 9.691
+      },
+      "1800": {
+       "median_gap_pct": 3.5719,
+       "pools_positive": 6,
+       "pools": 8,
+       "median_benefit_pct": 10.2955,
+       "median_cost_pct": 4.4003
+      },
+      "7200": {
+       "median_gap_pct": 7.2394,
+       "pools_positive": 6,
+       "pools": 8,
+       "median_benefit_pct": 7.7523,
+       "median_cost_pct": 1.3641
+      }
+     }
+    },
+    "long-tail": {
+     "1": {
+      "25": {
+       "median_gap_pct": -78.797,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -16.1536,
+       "median_cost_pct": 63.5989
+      },
+      "300": {
+       "median_gap_pct": -78.5395,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -15.9728,
+       "median_cost_pct": 63.4966
+      },
+      "1800": {
+       "median_gap_pct": -69.7965,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -15.1656,
+       "median_cost_pct": 62.3615
+      },
+      "7200": {
+       "median_gap_pct": -69.7038,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -12.204,
+       "median_cost_pct": 58.1312
+      }
+     },
+     "5": {
+      "25": {
+       "median_gap_pct": -71.2847,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -11.9215,
+       "median_cost_pct": 61.036
+      },
+      "300": {
+       "median_gap_pct": -71.2811,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -11.8647,
+       "median_cost_pct": 59.8779
+      },
+      "1800": {
+       "median_gap_pct": -69.6839,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -10.8473,
+       "median_cost_pct": 58.3184
+      },
+      "7200": {
+       "median_gap_pct": -63.8941,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": -8.3593,
+       "median_cost_pct": 54.6313
+      }
+     }
+    },
+    "mid-cap": {
+     "1": {
+      "25": {
+       "median_gap_pct": -38.9713,
+       "pools_positive": 0,
+       "pools": 4,
+       "median_benefit_pct": 27.4621,
+       "median_cost_pct": 66.4163
+      },
+      "300": {
+       "median_gap_pct": -28.6811,
+       "pools_positive": 0,
+       "pools": 4,
+       "median_benefit_pct": 24.9681,
+       "median_cost_pct": 63.7738
+      },
+      "1800": {
+       "median_gap_pct": -17.7086,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 23.3624,
+       "median_cost_pct": 51.1586
+      },
+      "7200": {
+       "median_gap_pct": -10.9224,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 15.3209,
+       "median_cost_pct": 35.9359
+      }
+     },
+     "5": {
+      "25": {
+       "median_gap_pct": -10.6461,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 11.2309,
+       "median_cost_pct": 36.0819
+      },
+      "300": {
+       "median_gap_pct": -13.0197,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 9.1214,
+       "median_cost_pct": 29.8953
+      },
+      "1800": {
+       "median_gap_pct": -16.0944,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 8.8606,
+       "median_cost_pct": 29.4632
+      },
+      "7200": {
+       "median_gap_pct": -10.267,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 11.2819,
+       "median_cost_pct": 18.8746
+      }
+     }
+    }
+   },
+   "small": {
+    "blue-chip": {
+     "1": {
+      "25": {
+       "median_gap_pct": -7.8918,
+       "pools_positive": 1,
+       "pools": 8,
+       "median_benefit_pct": 39.0934,
+       "median_cost_pct": 54.2819
+      },
+      "300": {
+       "median_gap_pct": -5.6811,
+       "pools_positive": 3,
+       "pools": 8,
+       "median_benefit_pct": 34.5127,
+       "median_cost_pct": 43.9567
+      },
+      "1800": {
+       "median_gap_pct": 1.0186,
+       "pools_positive": 5,
+       "pools": 8,
+       "median_benefit_pct": 30.3207,
+       "median_cost_pct": 29.0688
+      },
+      "7200": {
+       "median_gap_pct": 3.8186,
+       "pools_positive": 6,
+       "pools": 8,
+       "median_benefit_pct": 21.7721,
+       "median_cost_pct": 19.8542
+      }
+     },
+     "5": {
+      "25": {
+       "median_gap_pct": -4.9798,
+       "pools_positive": 1,
+       "pools": 8,
+       "median_benefit_pct": 13.3417,
+       "median_cost_pct": 17.8976
+      },
+      "300": {
+       "median_gap_pct": 4.3387,
+       "pools_positive": 8,
+       "pools": 8,
+       "median_benefit_pct": 13.7651,
+       "median_cost_pct": 7.3919
+      },
+      "1800": {
+       "median_gap_pct": 8.0645,
+       "pools_positive": 8,
+       "pools": 8,
+       "median_benefit_pct": 12.1974,
+       "median_cost_pct": 3.3783
+      },
+      "7200": {
+       "median_gap_pct": 9.2487,
+       "pools_positive": 8,
+       "pools": 8,
+       "median_benefit_pct": 10.2904,
+       "median_cost_pct": 0.7493
+      }
+     }
+    },
+    "long-tail": {
+     "1": {
+      "25": {
+       "median_gap_pct": -23.1,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": 31.7253,
+       "median_cost_pct": 56.1125
+      },
+      "300": {
+       "median_gap_pct": -13.3134,
+       "pools_positive": 0,
+       "pools": 11,
+       "median_benefit_pct": 34.0979,
+       "median_cost_pct": 49.4788
+      },
+      "1800": {
+       "median_gap_pct": -7.9943,
+       "pools_positive": 1,
+       "pools": 11,
+       "median_benefit_pct": 27.3775,
+       "median_cost_pct": 45.1374
+      },
+      "7200": {
+       "median_gap_pct": -10.5182,
+       "pools_positive": 4,
+       "pools": 11,
+       "median_benefit_pct": 19.2974,
+       "median_cost_pct": 31.5498
+      }
+     },
+     "5": {
+      "25": {
+       "median_gap_pct": -13.4223,
+       "pools_positive": 1,
+       "pools": 11,
+       "median_benefit_pct": 11.9201,
+       "median_cost_pct": 32.5357
+      },
+      "300": {
+       "median_gap_pct": -6.0397,
+       "pools_positive": 1,
+       "pools": 11,
+       "median_benefit_pct": 11.1826,
+       "median_cost_pct": 26.9008
+      },
+      "1800": {
+       "median_gap_pct": -7.1391,
+       "pools_positive": 1,
+       "pools": 11,
+       "median_benefit_pct": 9.8354,
+       "median_cost_pct": 26.9891
+      },
+      "7200": {
+       "median_gap_pct": -4.7516,
+       "pools_positive": 3,
+       "pools": 11,
+       "median_benefit_pct": 7.6912,
+       "median_cost_pct": 15.1486
+      }
+     }
+    },
+    "mid-cap": {
+     "1": {
+      "25": {
+       "median_gap_pct": -15.8134,
+       "pools_positive": 0,
+       "pools": 4,
+       "median_benefit_pct": 43.2408,
+       "median_cost_pct": 64.9488
+      },
+      "300": {
+       "median_gap_pct": -18.7303,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 40.8066,
+       "median_cost_pct": 62.0628
+      },
+      "1800": {
+       "median_gap_pct": -7.9435,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 42.9184,
+       "median_cost_pct": 49.5699
+      },
+      "7200": {
+       "median_gap_pct": -11.3244,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 26.771,
+       "median_cost_pct": 34.2031
+      }
+     },
+     "5": {
+      "25": {
+       "median_gap_pct": -11.5615,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 25.8296,
+       "median_cost_pct": 34.2697
+      },
+      "300": {
+       "median_gap_pct": -11.6687,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 22.4876,
+       "median_cost_pct": 28.1505
+      },
+      "1800": {
+       "median_gap_pct": -6.7567,
+       "pools_positive": 2,
+       "pools": 4,
+       "median_benefit_pct": 20.7266,
+       "median_cost_pct": 31.1752
+      },
+      "7200": {
+       "median_gap_pct": -6.2687,
+       "pools_positive": 1,
+       "pools": 4,
+       "median_benefit_pct": 17.6528,
+       "median_cost_pct": 18.3141
+      }
+     }
+    }
+   }
+  },
+  "per_pool_headline": [
+   {
+    "pool": "DAI/WETH 0.3%",
+    "class": "blue-chip",
+    "recentres": 16,
+    "skipped": 0,
+    "benefit_pct": 13.5563,
+    "rebalance_pct": 2.0759,
+    "market_pct": -7.3565,
+    "gap_excl_gas_pct": 4.1239,
+    "gas_usd_total": 1.2346,
+    "capital_where_gas_is_half_pct_usd": 247.0,
+    "registered_gap_pct": -61.063,
+    "registered_size_ratio": 2.1561,
+    "pool_scale_usd": 254536.0
+   },
+   {
+    "pool": "WBTC/USDC 0.3%",
+    "class": "blue-chip",
+    "recentres": 11,
+    "skipped": 0,
+    "benefit_pct": 8.9399,
+    "rebalance_pct": 1.5311,
+    "market_pct": -6.2126,
+    "gap_excl_gas_pct": 1.1962,
+    "gas_usd_total": 6.5286,
+    "capital_where_gas_is_half_pct_usd": 1306.0,
+    "registered_gap_pct": 2.1463,
+    "registered_size_ratio": 0.2784,
+    "pool_scale_usd": 2864790.0
+   },
+   {
+    "pool": "WBTC/WETH 0.05%",
+    "class": "blue-chip",
+    "recentres": 4,
+    "skipped": 0,
+    "benefit_pct": 3.7905,
+    "rebalance_pct": 0.1487,
+    "market_pct": -0.6044,
+    "gap_excl_gas_pct": 3.0374,
+    "gas_usd_total": 0.4897,
+    "capital_where_gas_is_half_pct_usd": 98.0,
+    "registered_gap_pct": 2.4937,
+    "registered_size_ratio": 0.1208,
+    "pool_scale_usd": 9876290.0
+   },
+   {
+    "pool": "WBTC/WETH 0.3%",
+    "class": "blue-chip",
+    "recentres": 4,
+    "skipped": 0,
+    "benefit_pct": 3.5526,
+    "rebalance_pct": 0.6324,
+    "market_pct": -0.515,
+    "gap_excl_gas_pct": 2.4052,
+    "gas_usd_total": 0.6021,
+    "capital_where_gas_is_half_pct_usd": 120.0,
+    "registered_gap_pct": -6.5584,
+    "registered_size_ratio": 0.3838,
+    "pool_scale_usd": 2298613.0
+   },
+   {
+    "pool": "WETH/USDC 0.05%",
+    "class": "blue-chip",
+    "recentres": 14,
+    "skipped": 0,
+    "benefit_pct": 15.8366,
+    "rebalance_pct": 0.4389,
+    "market_pct": -6.674,
+    "gap_excl_gas_pct": 8.7237,
+    "gas_usd_total": 1.1451,
+    "capital_where_gas_is_half_pct_usd": 229.0,
+    "registered_gap_pct": 7.9865,
+    "registered_size_ratio": 0.1095,
+    "pool_scale_usd": 7345405.0
+   },
+   {
+    "pool": "WETH/USDC 0.3%",
+    "class": "blue-chip",
+    "recentres": 14,
+    "skipped": 0,
+    "benefit_pct": 13.9739,
+    "rebalance_pct": 1.9108,
+    "market_pct": -5.7601,
+    "gap_excl_gas_pct": 6.303,
+    "gas_usd_total": 1.051,
+    "capital_where_gas_is_half_pct_usd": 210.0,
+    "registered_gap_pct": 0.7159,
+    "registered_size_ratio": 0.1564,
+    "pool_scale_usd": 6924718.0
+   },
+   {
+    "pool": "WETH/USDT 0.05%",
+    "class": "blue-chip",
+    "recentres": 14,
+    "skipped": 0,
+    "benefit_pct": 18.9803,
+    "rebalance_pct": 0.4299,
+    "market_pct": -6.2004,
+    "gap_excl_gas_pct": 12.35,
+    "gas_usd_total": 1.1394,
+    "capital_where_gas_is_half_pct_usd": 228.0,
+    "registered_gap_pct": -13.042,
+    "registered_size_ratio": 0.7306,
+    "pool_scale_usd": 1766189.0
+   },
+   {
+    "pool": "WETH/USDT 0.3%",
+    "class": "blue-chip",
+    "recentres": 16,
+    "skipped": 0,
+    "benefit_pct": 14.8308,
+    "rebalance_pct": 2.2571,
+    "market_pct": -8.0203,
+    "gap_excl_gas_pct": 4.5535,
+    "gas_usd_total": 6.9155,
+    "capital_where_gas_is_half_pct_usd": 1383.0,
+    "registered_gap_pct": 5.9319,
+    "registered_size_ratio": 0.0265,
+    "pool_scale_usd": 32847759.0
+   },
+   {
+    "pool": "1INCH/WETH 1%",
+    "class": "long-tail",
+    "recentres": 5,
+    "skipped": 0,
+    "benefit_pct": 9.1762,
+    "rebalance_pct": 2.258,
+    "market_pct": -5.2589,
+    "gap_excl_gas_pct": 1.6592,
+    "gas_usd_total": 0.3658,
+    "capital_where_gas_is_half_pct_usd": 73.0,
+    "registered_gap_pct": -79.742,
+    "registered_size_ratio": 619.137,
+    "pool_scale_usd": 430.0
+   },
+   {
+    "pool": "APE/WETH 0.3%",
+    "class": "long-tail",
+    "recentres": 29,
+    "skipped": 0,
+    "benefit_pct": 12.0726,
+    "rebalance_pct": 3.3198,
+    "market_pct": -14.3375,
+    "gap_excl_gas_pct": -5.5848,
+    "gas_usd_total": 8.8286,
+    "capital_where_gas_is_half_pct_usd": 1766.0,
+    "registered_gap_pct": -71.183,
+    "registered_size_ratio": 352.536,
+    "pool_scale_usd": 85.0
+   },
+   {
+    "pool": "COMP/USDC 1%",
+    "class": "long-tail",
+    "recentres": 15,
+    "skipped": 0,
+    "benefit_pct": 0.9712,
+    "rebalance_pct": 0.27,
+    "market_pct": -38.8261,
+    "gap_excl_gas_pct": -38.125,
+    "gas_usd_total": 6.9004,
+    "capital_where_gas_is_half_pct_usd": 1380.0,
+    "registered_gap_pct": -38.1991,
+    "registered_size_ratio": 3.11385e+17,
+    "pool_scale_usd": 160239.0
+   },
+   {
+    "pool": "CRV/WETH 1%",
+    "class": "long-tail",
+    "recentres": 33,
+    "skipped": 0,
+    "benefit_pct": 10.2829,
+    "rebalance_pct": 11.7503,
+    "market_pct": -15.1505,
+    "gap_excl_gas_pct": -16.6179,
+    "gas_usd_total": 10.3973,
+    "capital_where_gas_is_half_pct_usd": 2079.0,
+    "registered_gap_pct": -71.2811,
+    "registered_size_ratio": 213.569,
+    "pool_scale_usd": 468.0
+   },
+   {
+    "pool": "ENS/WETH 0.3%",
+    "class": "long-tail",
+    "recentres": 16,
+    "skipped": 0,
+    "benefit_pct": 12.7948,
+    "rebalance_pct": 2.2031,
+    "market_pct": -12.7709,
+    "gap_excl_gas_pct": -2.1792,
+    "gas_usd_total": 2.8487,
+    "capital_where_gas_is_half_pct_usd": 570.0,
+    "registered_gap_pct": -71.4564,
+    "registered_size_ratio": 12.1444,
+    "pool_scale_usd": 7970.0
+   },
+   {
+    "pool": "LDO/WETH 0.3%",
+    "class": "long-tail",
+    "recentres": 29,
+    "skipped": 0,
+    "benefit_pct": 11.1826,
+    "rebalance_pct": 3.8598,
+    "market_pct": -22.8584,
+    "gap_excl_gas_pct": -15.5357,
+    "gas_usd_total": 4.6572,
+    "capital_where_gas_is_half_pct_usd": 931.0,
+    "registered_gap_pct": -73.1315,
+    "registered_size_ratio": 4.4199,
+    "pool_scale_usd": 44777.0
+   },
+   {
+    "pool": "MKR/WETH 0.3%",
+    "class": "long-tail",
+    "recentres": 35,
+    "skipped": 0,
+    "benefit_pct": 5.332,
+    "rebalance_pct": 4.1596,
+    "market_pct": -26.8913,
+    "gap_excl_gas_pct": -25.7189,
+    "gas_usd_total": 15.872,
+    "capital_where_gas_is_half_pct_usd": 3174.0,
+    "registered_gap_pct": -61.9742,
+    "registered_size_ratio": 3.7793,
+    "pool_scale_usd": 26316.0
+   },
+   {
+    "pool": "ONDO/WETH 0.3%",
+    "class": "long-tail",
+    "recentres": 27,
+    "skipped": 0,
+    "benefit_pct": 26.5046,
+    "rebalance_pct": 3.7271,
+    "market_pct": -24.3813,
+    "gap_excl_gas_pct": -1.6038,
+    "gas_usd_total": 9.3075,
+    "capital_where_gas_is_half_pct_usd": 1862.0,
+    "registered_gap_pct": -58.8686,
+    "registered_size_ratio": 1.8103,
+    "pool_scale_usd": 227966.0
+   },
+   {
+    "pool": "PEPE/WETH 0.3%",
+    "class": "long-tail",
+    "recentres": 43,
+    "skipped": 0,
+    "benefit_pct": 33.9268,
+    "rebalance_pct": 4.3868,
+    "market_pct": -37.1447,
+    "gap_excl_gas_pct": -7.6047,
+    "gas_usd_total": 20.9183,
+    "capital_where_gas_is_half_pct_usd": 4184.0,
+    "registered_gap_pct": -81.5632,
+    "registered_size_ratio": 13.2255,
+    "pool_scale_usd": 6541.0
+   },
+   {
+    "pool": "SHIB/WETH 1%",
+    "class": "long-tail",
+    "recentres": 10,
+    "skipped": 0,
+    "benefit_pct": 7.0308,
+    "rebalance_pct": 4.3745,
+    "market_pct": -8.1944,
+    "gap_excl_gas_pct": -5.538,
+    "gas_usd_total": 1.3303,
+    "capital_where_gas_is_half_pct_usd": 266.0,
+    "registered_gap_pct": -91.4491,
+    "registered_size_ratio": 63.4675,
+    "pool_scale_usd": 1528.0
+   },
+   {
+    "pool": "SPX/WETH 0.3%",
+    "class": "long-tail",
+    "recentres": 41,
+    "skipped": 0,
+    "benefit_pct": 29.773,
+    "rebalance_pct": 4.2766,
+    "market_pct": -31.5361,
+    "gap_excl_gas_pct": -6.0397,
+    "gas_usd_total": 4.3563,
+    "capital_where_gas_is_half_pct_usd": 871.0,
+    "registered_gap_pct": -67.6629,
+    "registered_size_ratio": 2.8274,
+    "pool_scale_usd": 6174.0
+   },
+   {
+    "pool": "AAVE/WETH 0.3%",
+    "class": "mid-cap",
+    "recentres": 20,
+    "skipped": 0,
+    "benefit_pct": 11.2813,
+    "rebalance_pct": 2.6056,
+    "market_pct": -19.1878,
+    "gap_excl_gas_pct": -10.512,
+    "gas_usd_total": 9.9127,
+    "capital_where_gas_is_half_pct_usd": 1983.0,
+    "registered_gap_pct": -13.2567,
+    "registered_size_ratio": 0.1767,
+    "pool_scale_usd": 827250.0
+   },
+   {
+    "pool": "ENA/WETH 0.3%",
+    "class": "mid-cap",
+    "recentres": 68,
+    "skipped": 0,
+    "benefit_pct": 33.694,
+    "rebalance_pct": 6.4585,
+    "market_pct": -45.2703,
+    "gap_excl_gas_pct": -18.0348,
+    "gas_usd_total": 18.1702,
+    "capital_where_gas_is_half_pct_usd": 3634.0,
+    "registered_gap_pct": -52.5078,
+    "registered_size_ratio": 1.2088,
+    "pool_scale_usd": 323687.0
+   },
+   {
+    "pool": "LINK/WETH 0.3%",
+    "class": "mid-cap",
+    "recentres": 15,
+    "skipped": 0,
+    "benefit_pct": 0.7794,
+    "rebalance_pct": 2.2108,
+    "market_pct": -11.3939,
+    "gap_excl_gas_pct": -12.8253,
+    "gas_usd_total": 1.9782,
+    "capital_where_gas_is_half_pct_usd": 396.0,
+    "registered_gap_pct": -12.7827,
+    "registered_size_ratio": 0.0184,
+    "pool_scale_usd": 2865077.0
+   },
+   {
+    "pool": "UNI/WETH 0.3%",
+    "class": "mid-cap",
+    "recentres": 41,
+    "skipped": 0,
+    "benefit_pct": 45.773,
+    "rebalance_pct": 5.381,
+    "market_pct": -29.1266,
+    "gap_excl_gas_pct": 11.2654,
+    "gas_usd_total": 10.1957,
+    "capital_where_gas_is_half_pct_usd": 2039.0,
+    "registered_gap_pct": 8.7904,
+    "registered_size_ratio": 0.2944,
+    "pool_scale_usd": 986945.0
+   }
+  ],
+  "managed": {
+   "blue-chip": {
+    "pools": 8,
+    "pools_with_managed_owners": 5,
+    "managed_owners": 11,
+    "recentre_events": 682,
+    "median_owner_latency_blocks": 5956.0,
+    "median_owner_active_share": 0.0003,
+    "median_owner_fee_yield_per_day": 0.001425,
+    "sim_P_fee_yield_per_day": 0.001374,
+    "sim_R300_fee_yield_per_day": 0.002911,
+    "median_sim_gap_pct_where_managed": 4.5535,
+    "median_sim_gap_pct_where_not_managed": 4.1239
+   },
+   "mid-cap": {
+    "pools": 4,
+    "pools_with_managed_owners": 3,
+    "managed_owners": 4,
+    "recentre_events": 428,
+    "median_owner_latency_blocks": 7480.0,
+    "median_owner_active_share": 0.0037,
+    "median_owner_fee_yield_per_day": 0.002212,
+    "sim_P_fee_yield_per_day": 0.001598,
+    "sim_R300_fee_yield_per_day": 0.002987,
+    "median_sim_gap_pct_where_managed": -10.512,
+    "median_sim_gap_pct_where_not_managed": -18.0348
+   },
+   "long-tail": {
+    "pools": 11,
+    "pools_with_managed_owners": 0,
+    "managed_owners": 0,
+    "recentre_events": 0,
+    "median_owner_latency_blocks": null,
+    "median_owner_active_share": null,
+    "median_owner_fee_yield_per_day": null,
+    "sim_P_fee_yield_per_day": null,
+    "sim_R300_fee_yield_per_day": null,
+    "median_sim_gap_pct_where_managed": null,
+    "median_sim_gap_pct_where_not_managed": -6.0397
+   }
+  }
+ },
  "saturation": {
   "pool_blocks": 2070,
   "by_x": {

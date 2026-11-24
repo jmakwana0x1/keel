@@ -216,6 +216,90 @@ def vol_depth(cls: dict) -> dict:
     return out
 
 
+def recentre_gap(cls: dict, name: dict) -> dict:
+    """Phase 0.5 (D0.12 as amended by D0.13): R_N − P per pool, decomposed, as % of capital; classification on the
+    15 target pools at the headline configuration (x = 5%, N = 300) using D0.12's registered thresholds."""
+    d = pd.read_csv(DATA / "phase0_recentre.csv", dtype={"x_pct": str})
+    declined = sorted({name[p] for p in d[d.curator == "declined"].pool})
+    d = d[d.curator != "declined"]
+    rows = []
+    for (pool, sizing, x), g in d.groupby(["pool", "sizing", "x_pct"]):
+        P = g[g.curator == "P"].iloc[0]
+        C = float(P.capital_usd)
+        for _, R in g[g.curator != "P"].iterrows():
+            benefit = (R.fees_usd - P.fees_usd) / C
+            rebal, gas = R.rebalance_cost_usd / C, R.gas_usd / C
+            gap = (R.total_usd - P.total_usd) / C          # gas included
+            market = gap - benefit + gas + rebal
+            rows.append({"pool": pool, "name": name[pool], "cls": cls[pool], "sizing": sizing, "x": x,
+                         "N": int(R.curator.split("_")[1]), "recentres": int(R.recentres), "skipped": int(R.skipped),
+                         "size_ratio": float(P.size_ratio_at_deploy), "capital_usd": C,
+                         "benefit": benefit, "rebalance": rebal, "gas": gas, "market": market,
+                         "cost_incl_gas": gas + rebal - market, "cost_excl_gas": rebal - market,
+                         "gap_incl_gas": gap, "gap_excl_gas": gap + gas, "gas_usd": float(R.gas_usd)})
+    t = pd.DataFrame(rows)
+    out = {"declined_pools": declined, "headline": {}, "grid": {}, "per_pool_headline": []}
+    for sizing, gk, ck in (("registered", "gap_incl_gas", "cost_incl_gas"), ("small", "gap_excl_gas", "cost_excl_gas")):
+        h = t[(t.sizing == sizing) & (t.x == "5") & (t.N == 300) & (t.cls != "blue-chip")]
+        med_gap, med_b, med_c = h[gk].median(), h.benefit.abs().median(), h[ck].abs().median()
+        pos, neg, n = int((h[gk] > 0).sum()), int((h[gk] < 0).sum()), len(h)
+        if med_b < 0.01 and med_c < 0.01:
+            verdict = "KILL: no economic content (median |benefit| and |cost| both < 1% of C)"
+        elif med_gap > 0.005 and pos >= 2 * n / 3:
+            verdict = "coordination failure: benefit > cost"
+        elif med_gap < -0.005 and neg >= 2 * n / 3:
+            verdict = "priced: benefit < cost"
+        else:
+            verdict = "thin"
+        out["headline"][sizing] = {
+            "gap_basis": gk, "target_pools": n, "median_gap_pct": r(100 * med_gap), "pools_gap_positive": pos,
+            "pools_gap_negative": neg, "median_abs_benefit_pct": r(100 * med_b), "median_abs_cost_pct": r(100 * med_c),
+            "median_benefit_pct": r(100 * h.benefit.median()), "median_rebalance_pct": r(100 * h.rebalance.median()),
+            "median_market_pct": r(100 * h.market.median()), "verdict": verdict,
+            # venue-independent bound: the same gap if rebalancing cost nothing at all
+            "median_gap_if_rebalance_free_pct": r(100 * (h[gk] + h.rebalance).median()),
+            "pools_positive_if_rebalance_free": int(((h[gk] + h.rebalance) > 0).sum()),
+            "pools_band_larger_than_pool": int((h.size_ratio >= 1).sum())}
+        for (c, x, N), g in t[t.sizing == sizing].groupby(["cls", "x", "N"]):
+            out["grid"].setdefault(sizing, {}).setdefault(c, {}).setdefault(x, {})[str(N)] = {
+                "median_gap_pct": r(100 * g[gk].median()), "pools_positive": int((g[gk] > 0).sum()), "pools": int(len(g)),
+                "median_benefit_pct": r(100 * g.benefit.median()), "median_cost_pct": r(100 * g[ck].median())}
+    hs = t[(t.sizing == "small") & (t.x == "5") & (t.N == 300)].sort_values(["cls", "name"])
+    for _, q in hs.iterrows():
+        reg = t[(t.sizing == "registered") & (t.pool == q.pool) & (t.x == "5") & (t.N == 300)].iloc[0]
+        out["per_pool_headline"].append({
+            "pool": q["name"], "class": q.cls, "recentres": q.recentres, "skipped": q.skipped,
+            "benefit_pct": r(100 * q.benefit), "rebalance_pct": r(100 * q.rebalance), "market_pct": r(100 * q.market),
+            "gap_excl_gas_pct": r(100 * q.gap_excl_gas), "gas_usd_total": r(q.gas_usd),
+            "capital_where_gas_is_half_pct_usd": r(q.gas_usd / 0.005, 0),
+            "registered_gap_pct": r(100 * reg.gap_incl_gas), "registered_size_ratio": r(reg.size_ratio),
+            # a ±5% band holding the pool's whole median active liquidity, in USD at deployment (small band ÷ 1%)
+            "pool_scale_usd": r(q.capital_usd / 0.01, 0)})
+    # control group: managed owners (D0.12)
+    m = pd.read_csv(DATA / "phase0_managed.csv")
+    has = m.dropna(subset=["owner"])
+    sim = t[(t.sizing == "small") & (t.x == "5") & (t.N == 300)].set_index("pool")
+    p_y = d[(d.sizing == "small") & (d.x_pct == "5")].assign(y=lambda q: q.fees_usd / (q.capital_usd * 90))
+    out["managed"] = {}
+    for c in ("blue-chip", "mid-cap", "long-tail"):
+        pools_c = [p for p in cls if cls[p] == c]
+        mc = has[has.pool.isin(pools_c)]
+        yP = p_y[(p_y.pool.isin(mc.pool)) & (p_y.curator == "P")].y
+        yR = p_y[(p_y.pool.isin(mc.pool)) & (p_y.curator == "R_300")].y
+        out["managed"][c] = {
+            "pools": len(pools_c), "pools_with_managed_owners": int(mc.pool.nunique()), "managed_owners": int(len(mc)),
+            "recentre_events": int(mc.recentres.sum()),
+            "median_owner_latency_blocks": r(mc.median_latency_blocks.median(), 0) if len(mc) else None,
+            "median_owner_active_share": r(mc.median_active_share.median()) if len(mc) else None,
+            "median_owner_fee_yield_per_day": r(mc.fee_yield_per_day.median(), 6) if len(mc) else None,
+            "sim_P_fee_yield_per_day": r(yP.median(), 6) if len(yP) else None,
+            "sim_R300_fee_yield_per_day": r(yR.median(), 6) if len(yR) else None,
+            "median_sim_gap_pct_where_managed": r(100 * sim.loc[sorted(set(mc.pool))].gap_excl_gas.median()) if len(mc) else None,
+            "median_sim_gap_pct_where_not_managed": r(100 * sim.loc[sorted(set(pools_c) - set(mc.pool))].gap_excl_gas.median())
+            if set(pools_c) - set(mc.pool) else None}
+    return out
+
+
 def branch(e: dict) -> dict:
     """docs/ARCHITECTURE.md D0.5: reads the lower bound of the wider of the CRV1-t and wild-cluster CIs;
     a CI straddling a threshold takes the more conservative branch."""
@@ -334,6 +418,9 @@ def main():
 
     # ---- 0.4 depth under volatility
     res["vol_depth"] = vol_depth(cls)
+
+    # ---- 0.5 re-centring gap
+    res["recentre"] = recentre_gap(cls, name)
 
     # ---- 0.3 saturation
     s = sat.dropna(subset=["ratio"])
@@ -522,6 +609,50 @@ def render(res: dict) -> str:
           f"{max(v['max_abs_hourly_return'] for v in st)}, and the worst peak-to-trough is "
           f"{min(v['worst_drawdown'] for v in st)}. Per-pool figures are under vol_depth.stress in "
           "phase0_results.json."]
+    rc = res["recentre"]
+    L += ["", "## 0.5 The re-centring gap — is staying centred worth what it costs?", "",
+          "Pre-registered in D0.12, amended before the full run in D0.13. Curator **P** never re-centres. **R_N** re-centres "
+          "N blocks after spot leaves its band, rebalancing through the pool's real book (exact v3 math). Gap = R − P as a "
+          "% of capital over 90 days. benefit = extra fees; cost = rebalance (pool fee + impact) + gas − market (the "
+          "crystallised move against holding the option). Headline: R_300 vs P, ±5%, the 15 target pools.", ""]
+    if rc["declined_pools"]:
+        L += [f"Declined (median active liquidity 0): {', '.join(rc['declined_pools'])}.", ""]
+    L += ["| Run | gap basis | median gap % | gap > 0 | gap < 0 | median benefit % | median rebalance % | median market % | "
+          "median abs(benefit) % | median abs(cost) % | bands larger than pool | verdict |", "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for sizing, v in rc["headline"].items():
+        L.append(f"| {sizing} | {v['gap_basis']} | {v['median_gap_pct']} | {v['pools_gap_positive']} of {v['target_pools']} | "
+                 f"{v['pools_gap_negative']} | {v['median_benefit_pct']} | {v['median_rebalance_pct']} | {v['median_market_pct']} | "
+                 f"{v['median_abs_benefit_pct']} | {v['median_abs_cost_pct']} | {v['pools_band_larger_than_pool']} | **{v['verdict']}** |")
+    L += ["", "The registered run is outside its own validity wherever the band is larger than the pool (D0.13). "
+          "Classification is read off the **small** run (band = 1% of the pool's median active liquidity, gas excluded).", "",
+          "Small run, R_300 vs P at ±5%, per pool (registered gap shown for comparison):", "",
+          "| Pool | class | re-centres | skipped | benefit % | rebalance % | market % | gap ex-gas % | gas USD total | "
+          "capital where gas = 0.5% | registered gap % | registered band/pool | pool scale USD (±5% band = 100% of median active L) |",
+          "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for q in rc["per_pool_headline"]:
+        L.append(f"| {q['pool']} | {q['class']} | {q['recentres']} | {q['skipped']} | {q['benefit_pct']} | {q['rebalance_pct']} | "
+                 f"{q['market_pct']} | {q['gap_excl_gas_pct']} | {q['gas_usd_total']} | {q['capital_where_gas_is_half_pct_usd']:,.0f} | "
+                 f"{q['registered_gap_pct']} | {q['registered_size_ratio']} | {q['pool_scale_usd']:,.0f} |")
+    L += ["", "Venue-independent bound: the median target-pool gap if rebalancing cost nothing at all is "
+          f"{rc['headline']['small']['median_gap_if_rebalance_free_pct']}% "
+          f"({rc['headline']['small']['pools_positive_if_rebalance_free']} of {rc['headline']['small']['target_pools']} pools "
+          "positive). No choice of swap venue can do better than this.", "",
+          "Control group: owners that do re-centre (D0.12 rule: non-NPM owner, burn and re-mint to a different range within "
+          "10 blocks, at least 5 times). Latency = blocks from spot leaving the burned range to the re-mint.", "",
+          "| Class | pools with managed owners | owners | re-centre events | median owner latency (blocks) | median owner share of "
+          "active L | owner fee yield / day | sim P yield / day | sim R_300 yield / day | sim gap % where managed | where not |",
+          "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for c, v in rc["managed"].items():
+        L.append(f"| {c} | {v['pools_with_managed_owners']} of {v['pools']} | {v['managed_owners']} | {v['recentre_events']} | "
+                 f"{v['median_owner_latency_blocks']} | {v['median_owner_active_share']} | {v['median_owner_fee_yield_per_day']} | "
+                 f"{v['sim_P_fee_yield_per_day']} | {v['sim_R300_fee_yield_per_day']} | {v['median_sim_gap_pct_where_managed']} | "
+                 f"{v['median_sim_gap_pct_where_not_managed']} |")
+    L += ["", "Sensitivity, small run: median gap % by class, band and N (pools with gap > 0 in brackets):", "",
+          "| Class | ±x | N=25 | N=300 | N=1800 | N=7200 |", "|---|---|---|---|---|---|"]
+    for c, xs in rc["grid"]["small"].items():
+        for x, ns in xs.items():
+            L.append(f"| {c} | {x}% | " + " | ".join(f"{ns[n]['median_gap_pct']} ({ns[n]['pools_positive']}/{ns[n]['pools']})"
+                                                       for n in ("25", "300", "1800", "7200")) + " |")
     return "\n".join(L)
 
 
