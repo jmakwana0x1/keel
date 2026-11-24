@@ -301,3 +301,30 @@ Written and pushed **before** any Phase 0.5 code was run on data. The commit tha
 - **Known limit.** Positions opened before the window are tracked only from their first in-window event.
 
 **Nothing here is a result.** Results go in D0.13.
+
+## D0.13 — Amendment to D0.12: the registered band is larger than the pool on 12 of 15 target pools (2026-11-24, before the full run)
+
+**Amends D0.12, which is not edited.** Written after a two-pool smoke test and a sizing diagnostic, and **before** the full Phase 0.5 run or any classification.
+
+**Disclosure of what had been seen.** A smoke test ran the registered spec on CRV/WETH 1% (long-tail, target) and WETH/USDC 0.3% (blue-chip). On CRV every re-centring curator went from $100k to under $1k. A trace showed why: the first rebalancing swap, $22k into a pool whose active liquidity is 1/200 of the band's, moved price **+1,008%**, and the registered rule then centred the new band at that impacted price. No other Phase 0.5 output had been seen.
+
+**The defect.** D0.12 reused the D0.8 notionals ($1M blue-chip, $100k otherwise). In D0.8 that was harmless, because price-taking made the sign of R\* independent of size. D0.12 added real price impact on the rebalancing swap, which makes size matter, and the registration did not check the band against the pool. Diagnostic, band L ÷ pool active L at deployment, ±5%:
+
+- **Long-tail:** 1.8× (ONDO) to 619× (1INCH) on all 11 pools. COMP has almost no liquidity at spot (ratio 3 × 10¹⁷).
+- **Mid-cap:** ENA 1.2×; AAVE, LINK and UNI are below 0.3.
+- **Blue-chip:** DAI/WETH 2.2×, all others below 0.75.
+
+Where the ratio is ≥ 1, both legs of the registered measurement are invalid:
+- **P's fees** come from the price-taking identity, which assumes the band does not move prices. A band larger than the pool obviously does.
+- **R's rebalancing** pays impact no curator would accept, and is then centred at a price the market immediately arbitrages away.
+
+**Amendment.**
+1. **The registered run is still executed and published in full** (`sizing = registered`), with the size diagnostic beside every row. Its classification is reported as registered, labelled *outside its validity on 12 of 15 target pools*.
+2. **An amended run is added** (`sizing = small`). Band liquidity = **1% of the pool's median active liquidity over the window's hourly samples**, at deployment and at every re-centre. That is the price-taking limit the fee identity assumes. In that limit the post-swap price is the tape price to within impact on 1% of the pool, so D0.12's "centred at the post-swap price" rule becomes harmless. All other spec terms are unchanged.
+3. **Gas in the amended run.** In the small limit C is an arbitrary scale, so gas as a % of C is an artefact of the chosen 1%. The amended gap is therefore classified **excluding gas**. Gas is reported separately as USD per re-centre, with the capital at which it would cross the 0.5% threshold.
+4. **Classification is read off the amended run**, with D0.12's thresholds and kill condition unchanged: ±0.5% of C, a 2/3 sign majority, and the 1%/1% kill. The registered run's classification is reported next to it.
+5. **Pools whose median active liquidity is zero** cannot host a 1%-of-pool band. They are declined and named (rule 1), not resized.
+
+**Why 1%.** It is not tuned. It places the band well inside the price-taking regime that every fee figure in Phase 0 assumes (D0.8). The registered run already shows what happens at the opposite extreme. A size sweep is not added, because the decision is about whether staying centred pays at all, not about the optimal size.
+
+**Rejected:** silently re-running with new notionals and presenting that as the registered result. That would be the third post-hoc rule, applied without disclosure, which is the pattern D0.12 was written to prevent.
