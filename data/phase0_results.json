@@ -2926,6 +2926,157 @@
     "pool_scale_usd": 986945.0
    }
   ],
+  "valid_subset": {
+   "min_capital_usd": 1000,
+   "by_N": {
+    "25": {
+     "pools": [
+      "AAVE/WETH 0.3%",
+      "COMP/USDC 1%",
+      "ENA/WETH 0.3%",
+      "LINK/WETH 0.3%",
+      "ONDO/WETH 0.3%",
+      "UNI/WETH 0.3%"
+     ],
+     "n": 6,
+     "median_gap_incl_gas_pct": -11.6414,
+     "median_gap_excl_gas_pct": -11.5615,
+     "pools_positive": 1,
+     "mean_gap_pct": -12.046,
+     "mean_benefit_pct": 23.6168,
+     "mean_rebalance_pct": 4.7817,
+     "mean_gas_pct": 0.272,
+     "mean_market_pct": -30.609,
+     "midcap_n": 4,
+     "midcap_median_gap_incl_gas_pct": -11.6414,
+     "midcap_pools_positive": 1,
+     "longtail_in_subset": [
+      "COMP/USDC 1%",
+      "ONDO/WETH 0.3%"
+     ],
+     "longtail_below_floor": 9
+    },
+    "300": {
+     "pools": [
+      "AAVE/WETH 0.3%",
+      "COMP/USDC 1%",
+      "ENA/WETH 0.3%",
+      "LINK/WETH 0.3%",
+      "ONDO/WETH 0.3%",
+      "UNI/WETH 0.3%"
+     ],
+     "n": 6,
+     "median_gap_incl_gas_pct": -11.732,
+     "median_gap_excl_gas_pct": -11.6687,
+     "pools_positive": 1,
+     "mean_gap_pct": -11.911,
+     "mean_benefit_pct": 19.8339,
+     "mean_rebalance_pct": 3.4422,
+     "mean_gas_pct": 0.2717,
+     "mean_market_pct": -28.031,
+     "midcap_n": 4,
+     "midcap_median_gap_incl_gas_pct": -11.732,
+     "midcap_pools_positive": 1,
+     "longtail_in_subset": [
+      "COMP/USDC 1%",
+      "ONDO/WETH 0.3%"
+     ],
+     "longtail_below_floor": 9
+    },
+    "1800": {
+     "pools": [
+      "AAVE/WETH 0.3%",
+      "COMP/USDC 1%",
+      "ENA/WETH 0.3%",
+      "LINK/WETH 0.3%",
+      "ONDO/WETH 0.3%",
+      "UNI/WETH 0.3%"
+     ],
+     "n": 6,
+     "median_gap_incl_gas_pct": -13.0436,
+     "median_gap_excl_gas_pct": -12.979,
+     "pools_positive": 2,
+     "mean_gap_pct": -13.7431,
+     "mean_benefit_pct": 16.4968,
+     "mean_rebalance_pct": 2.5445,
+     "mean_gas_pct": 0.1616,
+     "mean_market_pct": -27.5337,
+     "midcap_n": 4,
+     "midcap_median_gap_incl_gas_pct": -6.8944,
+     "midcap_pools_positive": 2,
+     "longtail_in_subset": [
+      "COMP/USDC 1%",
+      "ONDO/WETH 0.3%"
+     ],
+     "longtail_below_floor": 9
+    },
+    "7200": {
+     "pools": [
+      "AAVE/WETH 0.3%",
+      "COMP/USDC 1%",
+      "ENA/WETH 0.3%",
+      "LINK/WETH 0.3%",
+      "ONDO/WETH 0.3%",
+      "UNI/WETH 0.3%"
+     ],
+     "n": 6,
+     "median_gap_incl_gas_pct": -6.3064,
+     "median_gap_excl_gas_pct": -6.2687,
+     "pools_positive": 2,
+     "mean_gap_pct": -3.1452,
+     "mean_benefit_pct": 15.0751,
+     "mean_rebalance_pct": 1.4838,
+     "mean_gas_pct": 0.0342,
+     "mean_market_pct": -16.7022,
+     "midcap_n": 4,
+     "midcap_median_gap_incl_gas_pct": -6.3064,
+     "midcap_pools_positive": 1,
+     "longtail_in_subset": [
+      "COMP/USDC 1%",
+      "ONDO/WETH 0.3%"
+     ],
+     "longtail_below_floor": 9
+    }
+   }
+  },
+  "delay_curve": {
+   "25": {
+    "target_incl_gas": -32.1306,
+    "target_excl_gas": -13.4223,
+    "valid_subset_incl_gas": -11.6414,
+    "blue_incl_gas": -4.986,
+    "blue_excl_gas": -4.9798,
+    "blue_positive": 1,
+    "blue_n": 8
+   },
+   "300": {
+    "target_incl_gas": -14.243,
+    "target_excl_gas": -7.6047,
+    "valid_subset_incl_gas": -11.732,
+    "blue_incl_gas": 4.3134,
+    "blue_excl_gas": 4.3387,
+    "blue_positive": 8,
+    "blue_n": 8
+   },
+   "1800": {
+    "target_incl_gas": -18.1225,
+    "target_excl_gas": -7.1391,
+    "valid_subset_incl_gas": -13.0436,
+    "blue_incl_gas": 8.0393,
+    "blue_excl_gas": 8.0645,
+    "blue_positive": 8,
+    "blue_n": 8
+   },
+   "7200": {
+    "target_incl_gas": -9.5003,
+    "target_excl_gas": -4.7516,
+    "valid_subset_incl_gas": -6.3064,
+    "blue_incl_gas": 9.248,
+    "blue_excl_gas": 9.2487,
+    "blue_positive": 8,
+    "blue_n": 8
+   }
+  },
   "managed": {
    "blue-chip": {
     "pools": 8,
@@ -2966,6 +3117,175 @@
     "median_sim_gap_pct_where_managed": null,
     "median_sim_gap_pct_where_not_managed": -6.0397
    }
+  }
+ },
+ "market": {
+  "source": "https://yields.llama.fi/pools",
+  "fetched_utc": "2026-11-24T07:50:19+00:00",
+  "pools_in_snapshot": 2104,
+  "by_chain": {
+   "Arbitrum v3": {
+    "pools": 191,
+    "blue-chip": 19,
+    "mid-cap": 1,
+    "long-tail": 137,
+    "pegged (excluded)": 33,
+    "unparsed": 0,
+    "mid_cap_tvl_ge_100k": 1,
+    "volume unknown": 1,
+    "unknown_volume_tvl_ge_1m": 0
+   },
+   "Arbitrum v4": {
+    "pools": 54,
+    "blue-chip": 15,
+    "mid-cap": 0,
+    "long-tail": 0,
+    "pegged (excluded)": 3,
+    "unparsed": 0,
+    "mid_cap_tvl_ge_100k": 0,
+    "volume unknown": 36,
+    "unknown_volume_tvl_ge_1m": 1
+   },
+   "Base v3": {
+    "pools": 412,
+    "blue-chip": 15,
+    "mid-cap": 0,
+    "long-tail": 0,
+    "pegged (excluded)": 15,
+    "unparsed": 1,
+    "mid_cap_tvl_ge_100k": 0,
+    "volume unknown": 381,
+    "unknown_volume_tvl_ge_1m": 14
+   },
+   "Base v4": {
+    "pools": 374,
+    "blue-chip": 20,
+    "mid-cap": 0,
+    "long-tail": 0,
+    "pegged (excluded)": 14,
+    "unparsed": 1,
+    "mid_cap_tvl_ge_100k": 0,
+    "volume unknown": 339,
+    "unknown_volume_tvl_ge_1m": 8
+   },
+   "Ethereum v3": {
+    "pools": 519,
+    "blue-chip": 21,
+    "mid-cap": 18,
+    "long-tail": 411,
+    "pegged (excluded)": 61,
+    "unparsed": 1,
+    "mid_cap_tvl_ge_100k": 18,
+    "volume unknown": 7,
+    "unknown_volume_tvl_ge_1m": 0
+   },
+   "Ethereum v4": {
+    "pools": 532,
+    "blue-chip": 24,
+    "mid-cap": 7,
+    "long-tail": 212,
+    "pegged (excluded)": 92,
+    "unparsed": 1,
+    "mid_cap_tvl_ge_100k": 6,
+    "volume unknown": 196,
+    "unknown_volume_tvl_ge_1m": 8
+   },
+   "Unichain v4": {
+    "pools": 22,
+    "blue-chip": 8,
+    "mid-cap": 0,
+    "long-tail": 0,
+    "pegged (excluded)": 3,
+    "unparsed": 0,
+    "mid_cap_tvl_ge_100k": 0,
+    "volume unknown": 11,
+    "unknown_volume_tvl_ge_1m": 0
+   }
+  },
+  "mid_cap_total": 26,
+  "mid_cap_tvl_ge_100k": 25,
+  "mid_cap_tvl_ge_1m": 21,
+  "unknown_volume_tvl_ge_1m": 31,
+  "proxy_check": {
+   "found": 15,
+   "agree": 14,
+   "detail": [
+    {
+     "pool": "1INCH/WETH 1%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "AAVE/WETH 0.3%",
+     "measured": "mid-cap",
+     "proxy": "mid-cap"
+    },
+    {
+     "pool": "APE/WETH 0.3%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "COMP/USDC 1%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "CRV/WETH 1%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "ENA/WETH 0.3%",
+     "measured": "mid-cap",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "ENS/WETH 0.3%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "LDO/WETH 0.3%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "LINK/WETH 0.3%",
+     "measured": "mid-cap",
+     "proxy": "mid-cap"
+    },
+    {
+     "pool": "MKR/WETH 0.3%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "ONDO/WETH 0.3%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "PEPE/WETH 0.3%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "SHIB/WETH 1%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "SPX/WETH 0.3%",
+     "measured": "long-tail",
+     "proxy": "long-tail"
+    },
+    {
+     "pool": "UNI/WETH 0.3%",
+     "measured": "mid-cap",
+     "proxy": "mid-cap"
+    }
+   ]
   }
  },
  "saturation": {

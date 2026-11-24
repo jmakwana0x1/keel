@@ -20,7 +20,8 @@ import statsmodels.formula.api as smf
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
-MID_THRESHOLD_USD = 500_000  # docs/ARCHITECTURE.md D0.3, fixed before data
+MID_THRESHOLD_USD = 500_000
+VALID_MIN_CAPITAL_USD = 1_000  # D0.15: smallest band (1% of pool) that is economically meaningful  # docs/ARCHITECTURE.md D0.3, fixed before data
 HORIZONS = [1, 25, 300]
 XLAB = ["0.5", "1", "2", "5", "10"]
 
@@ -264,6 +265,34 @@ def recentre_gap(cls: dict, name: dict) -> dict:
             out["grid"].setdefault(sizing, {}).setdefault(c, {}).setdefault(x, {})[str(N)] = {
                 "median_gap_pct": r(100 * g[gk].median()), "pools_positive": int((g[gk] > 0).sum()), "pools": int(len(g)),
                 "median_benefit_pct": r(100 * g.benefit.median()), "median_cost_pct": r(100 * g[ck].median())}
+    # D0.15 (owner decision, post-hoc): headline restricted to pools where the simulation is valid, i.e. a 1%-of-pool
+    # band is economically meaningful (capital >= $1,000). Gas included. Means are reported because they add exactly:
+    # gap = benefit − rebalance − gas + market.
+    v = t[(t.sizing == "small") & (t.x == "5") & (t.cls != "blue-chip") & (t.capital_usd >= VALID_MIN_CAPITAL_USD)]
+    out["valid_subset"] = {"min_capital_usd": VALID_MIN_CAPITAL_USD, "by_N": {}}
+    for N, g in v.groupby("N"):
+        mid = g[g.cls == "mid-cap"]
+        out["valid_subset"]["by_N"][str(N)] = {
+            "pools": sorted(g.name), "n": int(len(g)), "median_gap_incl_gas_pct": r(100 * g.gap_incl_gas.median()),
+            "median_gap_excl_gas_pct": r(100 * g.gap_excl_gas.median()), "pools_positive": int((g.gap_incl_gas > 0).sum()),
+            "mean_gap_pct": r(100 * g.gap_incl_gas.mean()), "mean_benefit_pct": r(100 * g.benefit.mean()),
+            "mean_rebalance_pct": r(100 * g.rebalance.mean()), "mean_gas_pct": r(100 * g.gas.mean()),
+            "mean_market_pct": r(100 * g.market.mean()),
+            "midcap_n": int(len(mid)), "midcap_median_gap_incl_gas_pct": r(100 * mid.gap_incl_gas.median()),
+            "midcap_pools_positive": int((mid.gap_incl_gas > 0).sum()),
+            "longtail_in_subset": sorted(g[g.cls == "long-tail"].name),
+            "longtail_below_floor": int(((t.sizing == "small") & (t.x == "5") & (t.N == N) & (t.cls == "long-tail")
+                                         & (t.capital_usd < VALID_MIN_CAPITAL_USD)).sum())}
+    # delay curve, both gas bases, target vs blue-chip, ±5%
+    out["delay_curve"] = {}
+    for N, g in t[(t.sizing == "small") & (t.x == "5")].groupby("N"):
+        tg, bc = g[g.cls != "blue-chip"], g[g.cls == "blue-chip"]
+        out["delay_curve"][str(N)] = {"target_incl_gas": r(100 * tg.gap_incl_gas.median()),
+                                      "target_excl_gas": r(100 * tg.gap_excl_gas.median()),
+                                      "valid_subset_incl_gas": r(100 * tg[tg.capital_usd >= VALID_MIN_CAPITAL_USD].gap_incl_gas.median()),
+                                      "blue_incl_gas": r(100 * bc.gap_incl_gas.median()),
+                                      "blue_excl_gas": r(100 * bc.gap_excl_gas.median()),
+                                      "blue_positive": int((bc.gap_incl_gas > 0).sum()), "blue_n": int(len(bc))}
     hs = t[(t.sizing == "small") & (t.x == "5") & (t.N == 300)].sort_values(["cls", "name"])
     for _, q in hs.iterrows():
         reg = t[(t.sizing == "registered") & (t.pool == q.pool) & (t.x == "5") & (t.N == 300)].iloc[0]
@@ -297,6 +326,70 @@ def recentre_gap(cls: dict, name: dict) -> dict:
             "median_sim_gap_pct_where_managed": r(100 * sim.loc[sorted(set(mc.pool))].gap_excl_gas.median()) if len(mc) else None,
             "median_sim_gap_pct_where_not_managed": r(100 * sim.loc[sorted(set(pools_c) - set(mc.pool))].gap_excl_gas.median())
             if set(pools_c) - set(mc.pool) else None}
+    return out
+
+
+BLUE_SYMBOLS = {"WETH", "ETH", "WBTC", "CBBTC", "USDC", "USDC.E", "USDBC", "USDT", "USDT0", "DAI"}
+PEG_SETS = [{"WETH", "ETH", "WSTETH", "STETH", "RETH", "CBETH", "WEETH", "EZETH", "RSETH", "OSETH"},
+            {"WBTC", "CBBTC", "TBTC", "LBTC"}]
+
+
+def market_count(pools: list[dict], cls: dict) -> dict:
+    """D0.3 classes applied to the DefiLlama snapshot (third-party, 7-day volume as proxy). See sim/market_count.py."""
+    snap = json.loads((DATA / "phase0_market_pools.json").read_text())
+
+    def classify_row(q):
+        syms = [x.upper() for x in q["symbol"].split("-")]
+        if len(syms) != 2:
+            return "unparsed"
+        a, b = syms
+        if q.get("stablecoin") or any(a in g and b in g for g in PEG_SETS):
+            return "pegged (excluded)"
+        if a in BLUE_SYMBOLS and b in BLUE_SYMBOLS:
+            return "blue-chip"
+        if q.get("volumeUsd7d") is None:  # missing is unknown, not zero (rule 1)
+            return "volume unknown"
+        return "mid-cap" if q["volumeUsd7d"] / 7 >= MID_THRESHOLD_USD else "long-tail"
+
+    rows = snap["pools"]
+    for q in rows:
+        q["cls"] = classify_row(q)
+    out = {"source": snap["source"], "fetched_utc": snap["fetched_utc"], "pools_in_snapshot": len(rows), "by_chain": {},
+           "mid_cap_total": 0, "mid_cap_tvl_ge_100k": 0, "mid_cap_tvl_ge_1m": 0, "unknown_volume_tvl_ge_1m": 0}
+    for q in rows:
+        k = f'{q["chain"]} {q["project"].replace("uniswap-", "")}'
+        b = out["by_chain"].setdefault(k, {"pools": 0, "blue-chip": 0, "mid-cap": 0, "long-tail": 0, "pegged (excluded)": 0,
+                                           "unparsed": 0, "mid_cap_tvl_ge_100k": 0, "volume unknown": 0,
+                                           "unknown_volume_tvl_ge_1m": 0})
+        b["pools"] += 1
+        b[q["cls"]] += 1
+        if q["cls"] == "mid-cap":
+            out["mid_cap_total"] += 1
+            out["mid_cap_tvl_ge_100k"] += (q["tvlUsd"] or 0) >= 1e5
+            out["mid_cap_tvl_ge_1m"] += (q["tvlUsd"] or 0) >= 1e6
+            b["mid_cap_tvl_ge_100k"] += (q["tvlUsd"] or 0) >= 1e5
+        if q["cls"] == "volume unknown" and (q["tvlUsd"] or 0) >= 1e6:
+            out["unknown_volume_tvl_ge_1m"] += 1
+            b["unknown_volume_tvl_ge_1m"] += 1
+    out["by_chain"] = dict(sorted(out["by_chain"].items()))
+    # proxy check against Phase 0's chain-measured classes, on the non-blue-chip pools found in the snapshot
+    agree = total = 0
+    detail = []
+    for p in pools:
+        if p["group"] == "blue":
+            continue
+        toks = {p["token0_address"], p["token1_address"]}
+        hit = [q for q in rows if q["project"] == "uniswap-v3" and q["chain"] == "Ethereum"
+               and {t.lower() for t in (q.get("underlyingTokens") or [])} == toks
+               and (q.get("poolMeta") or "").strip() == f'{p["fee"] / 1e4:g}%']
+        nm = f'{p["base"]}/{p["quote"]} {p["fee"] / 1e4:g}%'
+        if len(hit) != 1:
+            detail.append({"pool": nm, "measured": cls[p["pool"]], "proxy": "not in snapshot"})
+            continue
+        total += 1
+        agree += hit[0]["cls"] == cls[p["pool"]]
+        detail.append({"pool": nm, "measured": cls[p["pool"]], "proxy": hit[0]["cls"]})
+    out["proxy_check"] = {"found": total, "agree": agree, "detail": detail}
     return out
 
 
@@ -421,6 +514,9 @@ def main():
 
     # ---- 0.5 re-centring gap
     res["recentre"] = recentre_gap(cls, name)
+
+    # ---- market size (DefiLlama snapshot, proxy)
+    res["market"] = market_count(pools, cls)
 
     # ---- 0.3 saturation
     s = sat.dropna(subset=["ratio"])
@@ -617,6 +713,29 @@ def render(res: dict) -> str:
           "crystallised move against holding the option). Headline: R_300 vs P, ±5%, the 15 target pools.", ""]
     if rc["declined_pools"]:
         L += [f"Declined (median active liquidity 0): {', '.join(rc['declined_pools'])}.", ""]
+    vs = rc["valid_subset"]["by_N"]["300"]
+    L += [f"**Headline (D0.15): ±5%, R_300 vs P, gas included, on the {vs['n']} target pools where the simulation is valid "
+          f"(1%-of-pool band ≥ ${rc['valid_subset']['min_capital_usd']:,}): median gap {vs['median_gap_incl_gas_pct']}%, "
+          f"{vs['pools_positive']} of {vs['n']} positive.** Mid-cap alone ({vs['midcap_n']} pools): median "
+          f"{vs['midcap_median_gap_incl_gas_pct']}%, {vs['midcap_pools_positive']} positive. Pools: {', '.join(vs['pools'])}.", "",
+          "Means on that subset add exactly (gap = benefit − rebalance − gas + market):", "",
+          "| N | mean gap % | = benefit % | − rebalance % | − gas % | + market % | median gap incl / excl gas % |",
+          "|---|---|---|---|---|---|---|"]
+    for N, q in rc["valid_subset"]["by_N"].items():
+        L.append(f"| {N} | {q['mean_gap_pct']} | {q['mean_benefit_pct']} | {q['mean_rebalance_pct']} | {q['mean_gas_pct']} | "
+                 f"{q['mean_market_pct']} | {q['median_gap_incl_gas_pct']} / {q['median_gap_excl_gas_pct']} |")
+    L += ["", f"Long-tail: {vs['longtail_below_floor']} of 11 long-tail pools fall below the size floor and are not measurable "
+          "by this method at any size (D0.15). A band large enough to matter exceeds the pool and breaks price-taking; a band "
+          "small enough not to move price is a few dollars and is dominated by gas. The two long-tail pools above the floor "
+          f"({', '.join(vs['longtail_in_subset'])}) stay in the measurement subset, but long-tail is not the target market.", "",
+          "Delay curve, ±5%, median gap % (re-centring too fast loses everywhere; blue-chip turns positive only from N = 300):", "",
+          "| N | target incl gas | target excl gas | valid subset incl gas | blue-chip incl gas | blue-chip excl gas | blue-chip > 0 |",
+          "|---|---|---|---|---|---|---|"]
+    for N, q in rc["delay_curve"].items():
+        L.append(f"| {N} | {q['target_incl_gas']} | {q['target_excl_gas']} | {q['valid_subset_incl_gas']} | {q['blue_incl_gas']} | "
+                 f"{q['blue_excl_gas']} | {q['blue_positive']} of {q['blue_n']} |")
+    L += ["", "Registered classification (D0.12 thresholds; the 15-pool figures use the gap basis shown, which for the small run "
+          "is **±5%, R_300, gas excluded**, per D0.13). The component columns are **independent medians and do not sum**.", ""]
     L += ["| Run | gap basis | median gap % | gap > 0 | gap < 0 | median benefit % | median rebalance % | median market % | "
           "median abs(benefit) % | median abs(cost) % | bands larger than pool | verdict |", "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for sizing, v in rc["headline"].items():
@@ -653,6 +772,24 @@ def render(res: dict) -> str:
         for x, ns in xs.items():
             L.append(f"| {c} | {x}% | " + " | ".join(f"{ns[n]['median_gap_pct']} ({ns[n]['pools_positive']}/{ns[n]['pools']})"
                                                        for n in ("25", "300", "1800", "7200")) + " |")
+    mk = res["market"]
+    L += ["", "## Market size — how many pools meet the mid-cap definition?", "",
+          f"**Third-party data, not chain-measured.** Source: {mk['source']}, fetched {mk['fetched_utc']}. D0.3 classes, with "
+          "7-day average daily volume standing in for the 90-day median. DefiLlama omits pools below its own TVL floor, so "
+          "these counts are lower bounds. Blue-chip and pegged pairs are matched by token symbol.", "",
+          f"Proxy check against Phase 0's chain-measured classes: {mk['proxy_check']['agree']} of "
+          f"{mk['proxy_check']['found']} non-blue-chip pools found in the snapshot are classified the same way.", "",
+          "| Chain, version | pools listed | blue-chip | **mid-cap** | of which TVL ≥ $100k | long-tail | pegged (excluded) | "
+          "non-blue, volume unknown | of which TVL ≥ $1M |", "|---|---|---|---|---|---|---|---|---|"]
+    for k, b in mk["by_chain"].items():
+        L.append(f"| {k} | {b['pools']} | {b['blue-chip']} | **{b['mid-cap']}** | {b['mid_cap_tvl_ge_100k']} | {b['long-tail']} | "
+                 f"{b['pegged (excluded)']} | {b['volume unknown']} | {b['unknown_volume_tvl_ge_1m']} |")
+    L += ["", f"**Mid-cap pools across the four chains: {mk['mid_cap_total']}** ({mk['mid_cap_tvl_ge_100k']} with TVL ≥ $100k, "
+          f"{mk['mid_cap_tvl_ge_1m']} with TVL ≥ $1M). These are only the pools whose volume DefiLlama reports. DefiLlama "
+          "reports **no volume** for Base, Arbitrum v4 and Unichain, and for part of Ethereum v4. Those pools are "
+          f"unclassified, not long-tail: {mk['unknown_volume_tvl_ge_1m']} of them are non-blue-chip with TVL ≥ $1M and are "
+          "unverified mid-cap candidates. The count above is a lower bound for the four chains and is close to complete "
+          "only for Ethereum v3 and Arbitrum v3."]
     return "\n".join(L)
 
 

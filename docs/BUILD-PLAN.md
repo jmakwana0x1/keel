@@ -285,6 +285,8 @@ Live on screen: curator accepts, block proved compliant, price pushed past the b
 2. **So measure it properly.** Replay the swap that moves the price. Saturation table. *Largest block of airtime: this is the novelty.*
 3. **Now you can sell it.** Someone commits, gets paid per block it holds, is slashed when it does not.
 
+> **Amended again by D0.14–D0.15.** The finding to lead with: on mid-cap pools, following the price after a move costs a curator a median 11.7% of capital per quarter, so nobody does it, and depth sits at the old price for most of a day. A mandate sells that follow-commitment, priced by staleness tolerance N. Directly after it comes the credibility item: re-centring managers are found on 5 of 8 blue-chip, 3 of 4 mid-cap and 0 of 11 long-tail pools, exactly where the simulation says re-centring pays. The market is 26+ mid-cap pools across four chains (lower bound, D0.15 §5). No retainer anchor is quoted.
+>
 > **Amended by Phase 0 (D0.7–D0.10).** Beat 1 must not claim naive depth is wrong on average: it is right at the median and wrong in the tail, in both directions. Beat 2's table is the tail table, not a median. Beat 3 is on hold: D0.8 found no positive retainer in the target market, so "paid per block" has no measured price there.
 
 Four clauses, one each, no mechanism explained: the auction, the funding, the bounty, the bond.

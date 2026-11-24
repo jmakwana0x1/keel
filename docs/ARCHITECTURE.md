@@ -364,7 +364,7 @@ Pre-registered in D0.12, amended before the full run in D0.13. All figures are i
 **What it means: the retainer is real, and the size problem is new.**
 
 1. **The follow-commitment has a measured, positive price.** At a small band it is a median 7.6% of committed capital per 90 days on target pools. This is the quantity D0.8's `R*` should have been: `R*` priced *supplying* depth, which is profitable to a curator who can stay put. A mandate sells *following*, which is not. D0.8 and D0.14 are consistent: supplying pays and committing costs.
-2. **It does not scale on long-tail.** In USD, a ±5% band holding each long-tail pool's *entire* median active liquidity is $85 (APE) to $228k (ONDO). A retainer at the scale of current market-making agreements ($120k–$600k a year, figure supplied by the project owner, not measured here) would need committed bands far larger than these pools. At band ≫ pool the registered run shows the cost: −38% (COMP/USDC) to −91% (SHIB/WETH) of capital over 90 days on long-tail. *Correction: first written as −58% to −91%, which omitted COMP.* On mid-cap the pool scales are $324k (ENA) to $2.9M (LINK), so a band in the same range is about the size of the pool, short of the "band ≫ pool" case the registered run covers.
+2. **It does not scale on long-tail.** In USD, a ±5% band holding each long-tail pool's *entire* median active liquidity is $85 (APE) to $228k (ONDO). A retainer at the scale of current market-making agreements ($120k–$600k a year, figure supplied by the project owner, not measured here) would need committed bands far larger than these pools. *Retracted in D0.15: the $120k–$600k figure is an unmeasured anchor and is not carried into the pitch or the README.* At band ≫ pool the registered run shows the cost: −38% (COMP/USDC) to −91% (SHIB/WETH) of capital over 90 days on long-tail. *Correction: first written as −58% to −91%, which omitted COMP.* On mid-cap the pool scales are $324k (ENA) to $2.9M (LINK), so a band in the same range is about the size of the pool, short of the "band ≫ pool" case the registered run covers.
 3. **Phase 0's reading for the design.** A KEEL mandate prices a real service: following the price on pools where following is privately unprofitable. Its natural market is **mid-cap**, where pool scale and retainer scale overlap. On long-tail, a mandate large enough to matter costs more than it can plausibly be paid, unless the issuer accepts paying close to the committed capital itself.
 
 **Limits.**
@@ -375,3 +375,71 @@ Pre-registered in D0.12, amended before the full run in D0.13. All figures are i
 - **Implementation reading of D0.13.** The 1% sizing applies at deployment. Each re-centre redeploys all of the curator's value rather than resetting L to exactly 1%, because holding L fixed would require injecting or withdrawing capital. L therefore stays within the curator's value drift of 1%.
 
 **Status.** The verdict is recorded. `ReserveLib`'s input changes from `k_arb·LVR − fees` (supplying) to the measured re-centring gap (following), and the target narrows to mid-cap pools. Both are design changes for the project owner to accept before Phase 1 starts. The meter, `prove()`, the bond and the Cannot manifest are unaffected.
+
+## D0.15 — Phase 0 closes: long-tail is unmeasurable, mid-cap is the market, staleness is a mandate parameter (2026-11-24)
+
+Accepted by the project owner after review of D0.14. It supersedes D0.14's reasons and headline where they differ, and D0.14's figures stand as computed. Every number below is in `data/phase0_results.md` §0.5 and "Market size".
+
+### 1. Long-tail is dropped because no valid measurement of it exists, not because re-centring loses there
+
+D0.14 gave "re-centring loses on long-tail" as the reason. That is not established, because the measurement is invalid on long-tail in **both** runs, in opposite directions:
+
+- **Registered sizing** ($100k) puts bands at 1.8× to 619× the pool, which breaks the price-taking assumption behind every fee figure and gives rebalancing absurd price impact.
+- **Amended sizing** (1% of the pool) gives long-tail bands of **$1 to $2,280, median $65**. APE is a $0.85 position re-centred 29 times: its gas-included gap of −1,041% is gas, not economics. Across target pools the mean of (rebalance + gas) is 92.5% of capital against a median of 7.0%: fixed costs eating micro-positions.
+
+**No band size is valid on these books.** Long-tail v3 pools are too small to host a mandate that is both large enough to matter and small enough not to move the price. Nine of the 11 long-tail pools fall below the size floor below. This reason is structural, and it does not depend on any parameter choice.
+
+### 2. Headline: the subset where the simulation is valid
+
+**Post-hoc, the owner's decision, and it does not change the sign.** The headline is restricted to target pools whose 1%-of-pool band is economically meaningful (capital ≥ $1,000), with gas included:
+
+> **±5%, R_300 vs P: median gap −11.73% of capital over 90 days, 1 of 6 pools positive.** Mid-cap alone (4 pools): −11.73%, 1 positive.
+
+Means on that subset, which add exactly: gap −11.91 = benefit 19.83 − rebalance 3.44 − gas 0.27 + market −28.03.
+
+**Reconciliation of the earlier figures:**
+
+| Figure | What it is |
+|---|---|
+| −7.60% | 15 target pools, ±5%, R_300, **gas excluded** (D0.13's classifying basis) |
+| −14.24% | The same, gas included |
+| −11.73% | The valid subset, gas included |
+| −165% | 15 pools at ±1%, gas included. Not an economic quantity at that sizing. |
+
+The D0.14 component figures (+11.3 / −7.0 / −26.9) are independent medians and do not sum. `model.py` now labels them so and reports additive means on the valid subset.
+
+### 3. Delay is load-bearing, so staleness tolerance becomes a mandate parameter
+
+| N (blocks) | Valid subset, median gap | Blue-chip, median gap | Blue-chip pools > 0 |
+|---|---|---|---|
+| 25 | −11.64% | **−4.99%** | 1 of 8 |
+| 300 | −11.73% | +4.31% | 8 of 8 |
+| 1,800 | −13.04% | +8.04% | 8 of 8 |
+| 7,200 | −6.31% | +9.25% | 8 of 8 |
+
+Re-centring too fast loses everywhere: blue-chip flips sign below N = 300. "Blue-chip is the reverse" holds only for N ≥ 300.
+
+**Design decision (constrains Phase 1–2).** A mandate carries an explicit **staleness tolerance N**, and a breach requires depth to be short for N consecutive blocks, not at one sampled block. Without it, a curator is in breach the instant price ticks out of band. That is unmandateable, and the data says enforcing it destroys value.
+
+- **Provenance:** N has measured support from two independent directions. The control group re-centres at a median of 5,956 (blue-chip) and 7,480 (mid-cap) blocks, and the delay curve shows value rising with patience up to 7,200.
+- **Bounds:** N is chosen per mandate at post time, within immutable bounds `MIN_STALENESS_BLOCKS = 300` and `MAX_STALENESS_BLOCKS = 7,200`. Below 300 is the measured loss-everywhere regime, and 7,200 is the longest delay measured. It is a mandate parameter, not a governable constant, which is consistent with the architectural invariants.
+- **Price schedule:** the delay curve is the retainer's price schedule. A shorter N is a stronger promise and costs more. `ReserveLib` prices from the measured re-centring gap at the mandate's N, replacing `k_arb·LVR − fees`.
+- **Mechanism sketch for Phase 2:** `prove()` is sampled, so "short for N consecutive blocks" is evidenced by two short proofs at least N blocks apart with **no compliant proof between them**. The curator rebuts by proving compliance at any block in between, and it is already paid only on proved-compliant blocks, so it has the incentive to do so. This adds a row to the Gate 2 adversary table: *a watcher times two short proofs around a brief, unproved compliant interval.* The rule "one breach per block" still applies.
+
+### 4. The retainer anchor is retracted
+
+The $120k–$600k annual figure for market-making agreements was supplied in review, unmeasured, and the capital figures show it cannot be buying v3 long-tail depth, because those pools cannot absorb it. It does not go into the README or the pitch unless it is measured.
+
+### 5. Market size: a lower bound, from third-party data
+
+DefiLlama's yields API (fetched 2026-11-24, snapshot committed as `data/phase0_market_pools.json`) uses 7-day average daily volume as a proxy for D0.3's 90-day median. Checked against Phase 0's chain-measured classes, it agrees on **14 of 15** non-blue-chip pools. The miss is ENA: mid-cap by 90-day median, long-tail by the latest 7 days.
+
+- **Counted:** **26 mid-cap pools** across Ethereum, Base, Arbitrum and Unichain (v3 + v4): 18 on Ethereum v3, 7 on Ethereum v4, 1 on Arbitrum v3.
+- **Unknown:** DefiLlama reports **no volume** for Base, Arbitrum v4 and Unichain, and for 47% of Ethereum v4. Those pools are unclassified, not long-tail. Of them, **31** are non-blue-chip with TVL ≥ $1M, which makes them unverified candidates.
+- **Reading:** the four-chain mid-cap market is at least 26 pools, plus up to 31 high-TVL candidates whose volume is unreported. That is not an upper bound, since lower-TVL unreported pools could also qualify. It is known well only for Ethereum v3 and Arbitrum v3. Settling Base needs that chain's swap logs. Four pools was the sample; this is the first estimate of the market, and it is small.
+
+### 6. For the pitch: model and behaviour agree
+
+The simulation says re-centring pays on blue-chip (N ≥ 300) and loses on the target pools. Looked for independently, owners who actually re-centre exist on **5 of 8 blue-chip, 3 of 4 mid-cap and 0 of 11 long-tail pools**, at about the slow latency the simulation favours. A model and revealed behaviour agreeing pool by pool is the strongest credibility item in Phase 0. It goes in the pitch directly after the finding.
+
+**Phase 0 is closed. Phase 1 (the meter) may start.** It is unaffected by every amendment here. Phase 2 inherits the staleness tolerance, and `ReserveLib` inherits the re-centring-gap pricing.

@@ -236,6 +236,30 @@ Stress in the window: the largest absolute hourly log return across pools is 0.5
 
 Pre-registered in D0.12, amended before the full run in D0.13. Curator **P** never re-centres. **R_N** re-centres N blocks after spot leaves its band, rebalancing through the pool's real book (exact v3 math). Gap = R − P as a % of capital over 90 days. benefit = extra fees; cost = rebalance (pool fee + impact) + gas − market (the crystallised move against holding the option). Headline: R_300 vs P, ±5%, the 15 target pools.
 
+**Headline (D0.15): ±5%, R_300 vs P, gas included, on the 6 target pools where the simulation is valid (1%-of-pool band ≥ $1,000): median gap -11.732%, 1 of 6 positive.** Mid-cap alone (4 pools): median -11.732%, 1 positive. Pools: AAVE/WETH 0.3%, COMP/USDC 1%, ENA/WETH 0.3%, LINK/WETH 0.3%, ONDO/WETH 0.3%, UNI/WETH 0.3%.
+
+Means on that subset add exactly (gap = benefit − rebalance − gas + market):
+
+| N | mean gap % | = benefit % | − rebalance % | − gas % | + market % | median gap incl / excl gas % |
+|---|---|---|---|---|---|---|
+| 25 | -12.046 | 23.6168 | 4.7817 | 0.272 | -30.609 | -11.6414 / -11.5615 |
+| 300 | -11.911 | 19.8339 | 3.4422 | 0.2717 | -28.031 | -11.732 / -11.6687 |
+| 1800 | -13.7431 | 16.4968 | 2.5445 | 0.1616 | -27.5337 | -13.0436 / -12.979 |
+| 7200 | -3.1452 | 15.0751 | 1.4838 | 0.0342 | -16.7022 | -6.3064 / -6.2687 |
+
+Long-tail: 9 of 11 long-tail pools fall below the size floor and are not measurable by this method at any size (D0.15). A band large enough to matter exceeds the pool and breaks price-taking; a band small enough not to move price is a few dollars and is dominated by gas. The two long-tail pools above the floor (COMP/USDC 1%, ONDO/WETH 0.3%) stay in the measurement subset, but long-tail is not the target market.
+
+Delay curve, ±5%, median gap % (re-centring too fast loses everywhere; blue-chip turns positive only from N = 300):
+
+| N | target incl gas | target excl gas | valid subset incl gas | blue-chip incl gas | blue-chip excl gas | blue-chip > 0 |
+|---|---|---|---|---|---|---|
+| 25 | -32.1306 | -13.4223 | -11.6414 | -4.986 | -4.9798 | 1 of 8 |
+| 300 | -14.243 | -7.6047 | -11.732 | 4.3134 | 4.3387 | 8 of 8 |
+| 1800 | -18.1225 | -7.1391 | -13.0436 | 8.0393 | 8.0645 | 8 of 8 |
+| 7200 | -9.5003 | -4.7516 | -6.3064 | 9.248 | 9.2487 | 8 of 8 |
+
+Registered classification (D0.12 thresholds; the 15-pool figures use the gap basis shown, which for the small run is **±5%, R_300, gas excluded**, per D0.13). The component columns are **independent medians and do not sum**.
+
 | Run | gap basis | median gap % | gap > 0 | gap < 0 | median benefit % | median rebalance % | median market % | median abs(benefit) % | median abs(cost) % | bands larger than pool | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | registered | gap_incl_gas | -67.6629 | 1 of 15 | 14 | -5.5776 | 25.4748 | -28.4322 | 10.3786 | 58.5653 | 12 | **priced: benefit < cost** |
@@ -291,3 +315,21 @@ Sensitivity, small run: median gap % by class, band and N (pools with gap > 0 in
 | long-tail | 5% | -13.4223 (1/11) | -6.0397 (1/11) | -7.1391 (1/11) | -4.7516 (3/11) |
 | mid-cap | 1% | -15.8134 (0/4) | -18.7303 (1/4) | -7.9435 (1/4) | -11.3244 (1/4) |
 | mid-cap | 5% | -11.5615 (1/4) | -11.6687 (1/4) | -6.7567 (2/4) | -6.2687 (1/4) |
+
+## Market size — how many pools meet the mid-cap definition?
+
+**Third-party data, not chain-measured.** Source: https://yields.llama.fi/pools, fetched 2026-11-24T07:50:19+00:00. D0.3 classes, with 7-day average daily volume standing in for the 90-day median. DefiLlama omits pools below its own TVL floor, so these counts are lower bounds. Blue-chip and pegged pairs are matched by token symbol.
+
+Proxy check against Phase 0's chain-measured classes: 14 of 15 non-blue-chip pools found in the snapshot are classified the same way.
+
+| Chain, version | pools listed | blue-chip | **mid-cap** | of which TVL ≥ $100k | long-tail | pegged (excluded) | non-blue, volume unknown | of which TVL ≥ $1M |
+|---|---|---|---|---|---|---|---|---|
+| Arbitrum v3 | 191 | 19 | **1** | 1 | 137 | 33 | 1 | 0 |
+| Arbitrum v4 | 54 | 15 | **0** | 0 | 0 | 3 | 36 | 1 |
+| Base v3 | 412 | 15 | **0** | 0 | 0 | 15 | 381 | 14 |
+| Base v4 | 374 | 20 | **0** | 0 | 0 | 14 | 339 | 8 |
+| Ethereum v3 | 519 | 21 | **18** | 18 | 411 | 61 | 7 | 0 |
+| Ethereum v4 | 532 | 24 | **7** | 6 | 212 | 92 | 196 | 8 |
+| Unichain v4 | 22 | 8 | **0** | 0 | 0 | 3 | 11 | 0 |
+
+**Mid-cap pools across the four chains: 26** (25 with TVL ≥ $100k, 21 with TVL ≥ $1M). These are only the pools whose volume DefiLlama reports. DefiLlama reports **no volume** for Base, Arbitrum v4 and Unichain, and for part of Ethereum v4. Those pools are unclassified, not long-tail: 31 of them are non-blue-chip with TVL ≥ $1M and are unverified mid-cap candidates. The count above is a lower bound for the four chains and is close to complete only for Ethereum v3 and Arbitrum v3.
