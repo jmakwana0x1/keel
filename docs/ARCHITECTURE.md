@@ -673,3 +673,13 @@ Built as specified:
 - Fewer optimizer runs: already at 200.
 - Stripping events and views: observability is how watchers find breaches.
 - Proxies, diamonds and library linking: proxies and `delegatecall` are banned by the architectural invariants. Public-library linking is `delegatecall`.
+
+## D2.8 — The negative site's gate is tested at the site, and `prove()` gas claims only what holds (2026-11-24)
+
+**Finding.** In the Phase 2 mutation transcript, deleting the gate inside `_burnMandate` (`actor == curator && status == ACTIVE`) left all 40 suite tests green. Both of today's callers, the curator's `reshape` and the curator's `settle`, check the same condition at entry. So through the public API the mutation is equivalent. It is still not covered: the gate sits at the site precisely so that a future entry point that forgets the check cannot reach `modifyLiquidity` with a negative delta (CLAUDE.md rule 2).
+
+**Decision.** `test/unit/NegativeSite.t.sol` deploys a probe, `KeelHookProbe is KeelHook`, at the flagged address. The probe calls `_burnMandate` directly, outside an unlock. A request the gate rejects reverts `NotCurator`. A request that passes the gate reaches the PoolManager and reverts `ManagerLocked`. The tests assert the selector, so they measure the gate and not the lock. A control case (the curator, while ACTIVE) must reach `ManagerLocked`. With the gate deleted, the fuzzed non-curator test and the not-ACTIVE test fail by name, and the control keeps passing.
+
+**Rejected:** (a) removing the site gate as redundant. That makes the single-site property depend on enumerating every entry point, which rule 2 exists to avoid. (b) Leaving the gap to Halmos alone. The probe is cheap now; `check_mandateDeltaRequiresActiveCurator` will state the same property symbolically at the same boundary.
+
+**Gas.** `data/phase2_gas.json` first asserted that the compliant path is the cheapest `prove()` path. That was false: a first compliant proof (133,475) costs more than a breach proof with short walks (121,680), because of first-time writes to the payment slots. The artifact now asserts what the design guarantees, that compliant gas does not depend on the book. Its first version of that check was vacuous: both books placed initialised ticks only outside the ±1% target range, which at spacing 60 holds at most two initialised ticks, so a planted walk changed nothing. The rebuilt comparison, the base book against the base book plus a ladder in range, fails under the planted walk (`194103 != 170388`).
