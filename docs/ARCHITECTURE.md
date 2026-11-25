@@ -683,3 +683,52 @@ Built as specified:
 **Rejected:** (a) removing the site gate as redundant. That makes the single-site property depend on enumerating every entry point, which rule 2 exists to avoid. (b) Leaving the gap to Halmos alone. The probe is cheap now; `check_mandateDeltaRequiresActiveCurator` will state the same property symbolically at the same boundary.
 
 **Gas.** `data/phase2_gas.json` first asserted that the compliant path is the cheapest `prove()` path. That was false: a first compliant proof (133,475) costs more than a breach proof with short walks (121,680), because of first-time writes to the payment slots. The artifact now asserts what the design guarantees, that compliant gas does not depend on the book. Its first version of that check was vacuous: both books placed initialised ticks only outside the ±1% target range, which at spacing 60 holds at most two initialised ticks, so a planted walk changed nothing. The rebuilt comparison, the base book against the base book plus a ladder in range, fails under the planted walk (`194103 != 170388`).
+
+## D2.9 — Positioning: what KEEL is sold as, and what it is not (2026-11-25)
+
+Recorded as a decision because three prior-art and framing assumptions have already cost this project credibility. The registry of retracted claims is `docs/CLAIMS.md`.
+
+### (a) The lender pivot: considered, rejected
+
+The framing: the buyer is a lending market, not an issuer, and the product is a borrow gate reading `costToMove(liquidation price)`. Rejected for four reasons.
+
+1. **It measures the wrong quantity.** Anchor-to-trigger is what an attacker pays to push the price down. A liquidator needs depth from the trigger *downward*, to roughly the trigger minus the liquidation bonus, at the moment the price arrives there. That is a different stretch of the book.
+2. **A live whole-pool gate is exploitable in one transaction.** Add liquidity, borrow past the gate, remove liquidity. A consuming contract can safely rely only on **bonded** depth: curator contributions, which is the closed form, not the walk. That weakens "the replay is necessary" exactly where the framing needs it.
+3. **The measured evidence does not carry over.** D0.15's −11.73% prices re-centring at the current price. Standing depth below a liquidation trigger is a standing bid, economically close to writing a put. Its cost is an option premium that nothing in the Phase 0 corpus measures.
+4. **Theme fit.** "Lenders, attack cost, borrow gate" reads as a risk oracle, not curated liquidity.
+
+**Kept:** `costToMove()` as a public view in `KeelMeter` (D2.11), positioned as a later beat. If a gate is ever demonstrated, it reads bonded depth only. That constraint is the design point, not a footnote.
+
+### (b) The obligation-unit claim, scoped to two regimes
+
+**Claim.** Rulebook liquidity obligations are denominated in **posted size**: quotes of a size, at a spread, for a share of trading time. KEEL denominates one in **cost to move** the price by `x`.
+
+**Sources, as supplied in review.** Two fetch attempts on 2026-11-25, against EUR-Lex and the NYSE rule guide, returned no body. So these are **not yet verified against primary text** and must not be published as verified until they are (`docs/CLAIMS.md`, open claims).
+- **MiFID II, Commission Delegated Regulation (EU) 2017/578.**
+  - Art. 2(1)(b): the agreement must require "posting firm, simultaneous two-way quotes of comparable size and competitive prices".
+  - Art. 1(2)(b): simultaneous two-way means "both the bid and the ask-price are present in the order book at the same time".
+  - Art. 1(2)(c): comparable size means sizes that "do not diverge by more than 50 % from each other".
+  - Art. 1(2)(d): competitive prices means quotes "posted at or within the maximum bid-ask range set by the trading venue".
+  - Arts. 1(1)(b) and 2(1)(b): for at least 50 % of daily trading hours of continuous trading, excluding auctions.
+- **NYSE Rule 104.**
+  - (a)(1)(A): a quote at the NBBO for 15 % of the day under 1M ADV, 10 % at or above it, and 25 % for ETPs.
+  - (a)(1)(A)(i)–(iv): within a Designated Percentage of the NBBO: 8 % for Tier 1, 28 % for Tier 2 at $1 or more, and 30 % for Tier 2 under $1.
+  - (g)(2): re-entry keyed to 50 % of the *published* bid or offer size.
+  - (f)(2)–(3): maintain price continuity "with reasonable depth". Depth is **not quantified in the rule**.
+
+**Scope.** These are the two largest regimes, and the claim is limited to them. Deutsche Börse, Nasdaq, ASX and TSX are unchecked. NYSE does issue numeric Depth Guidelines per security, but they are not in the rule text. So the claim is about the **rulebook standard**, not about the exchange having no number.
+
+**Rejected:** "forty years of market-maker rules" and any span-of-history framing (`docs/CLAIMS.md` row 11).
+
+### (c) Prior art is not empty
+
+Depth mandates already ship. At least two projects are reported, one of them deployed with a frontend and reportedly a bond auction of its own. Nothing about them is committed here yet: no names, addresses or code.
+
+- **The differentiation** is the measurement (exact replay, closed-form contribution, the capped-walk asymmetry) and the obligation's unit. It is not the category.
+- **The auction** is not claimed as a differentiator until the rival's code has been read.
+
+**Rejected:** "the depth-mandate quadrant is empty" (`docs/CLAIMS.md` row 7).
+
+### (d) Commercial scope
+
+The market-making acceptance-test story covers only the **on-chain leg** of a market-making agreement. Those agreements are mostly about centralised venues, and KEEL says nothing about that part.
