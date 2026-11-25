@@ -45,6 +45,7 @@ A hook that can revert a swap is a hook that can censor one.
 - Artifacts assert their own claims. An artifact that stops demonstrating its claim **fails; it does not regenerate**.
 - Figures read off tool output rather than machine-diffed are stated as measured, not as machine-checked. Keep the distinction visible in the README.
 - Modelled figures are tagged `[modelled]` until a measured run replaces them. Never let a hypothesis read as a result.
+- Before publishing any figure or claim in the README or pitch material, check it against `docs/CLAIMS.md`, the registry of retracted claims. A retraction has to be as findable as the claim was.
 
 ### 5. Everything is bounded
 
