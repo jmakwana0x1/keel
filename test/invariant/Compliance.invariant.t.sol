@@ -98,5 +98,6 @@ contract ComplianceInvariantTest is KeelHarness {
         assertGt(handler.provedBlocks(), 0, "vacuous: nothing was ever proved");
         assertGt(handler.breachesObserved(), 0, "vacuous: no breach path exercised");
         assertGt(handler.bondLiquidity(), 0, "vacuous: bond never placed");
+        assertGt(handler.swapsDone(), 0, "vacuous: no swap ever executed");
     }
 }

@@ -73,6 +73,8 @@ abstract contract MandateHandlerBase is Test {
     uint256 public accruedAtSlash;
 
     string public violation;
+    uint256 public violations; // every violation counted, so a mutation that trips several checks shows it
+    uint256 public swapsDone; // swaps that EXECUTED through the hook (a no-op push does not count)
     uint256 internal nonce;
     uint256 public attempts;
     uint256 public inactiveSkips;
@@ -112,6 +114,7 @@ abstract contract MandateHandlerBase is Test {
     // ------------------------------------------------------------------ helpers
 
     function _fail(string memory why) internal {
+        violations++;
         if (bytes(violation).length == 0) violation = why;
     }
 
@@ -148,6 +151,11 @@ abstract contract MandateHandlerBase is Test {
             if (uint256(esc) + acc != initialEscrow) _fail("escrow + accrued not conserved while ACTIVE");
             if (acc != uint256(paid) * retainer) _fail("accrued != paid blocks * retainer");
         }
+        // solvency in claims: everything the hook owes in the pay currency is held as ERC-6909 claims (D2.4),
+        // including a donation parked because the pool had no active liquidity
+        (uint256 p0, uint256 p1) = hook.pendingDonation(pid);
+        uint256 owed = uint256(esc) + acc + (pay == key.currency0 ? p0 : p1);
+        if (manager.balanceOf(address(hook), pay.toId()) < owed) _fail("hook claims below what it owes");
         if (slashed) {
             for (uint256 i; i < frozenBands.length; i++) {
                 if (_bandLiq(frozenBands[i]) != frozenLiq[i]) _fail("a slashed curator's liquidity was reduced");
@@ -164,8 +172,10 @@ abstract contract MandateHandlerBase is Test {
     function _pushTo(int24 t) internal {
         (, int24 now_,,) = manager.getSlot0(pid);
         if (t == now_) return;
+        // Rule 3: nothing on the swap path may revert. Invariant runs discard reverting calls
+        // (fail_on_revert = false), so an uncaught revert here would vanish; it is recorded as a violation instead.
         vm.prank(trader);
-        swapRouter.swap(
+        try swapRouter.swap(
             key,
             SwapParams({
                 zeroForOne: t < now_,
@@ -174,7 +184,11 @@ abstract contract MandateHandlerBase is Test {
             }),
             PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ""
-        );
+        ) {
+            swapsDone++;
+        } catch {
+            _fail("a swap reverted on the hook path");
+        }
     }
 
     function _lp(int24 lower, int24 upper, int256 delta) internal {

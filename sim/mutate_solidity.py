@@ -66,6 +66,9 @@ MUTATIONS2 = {
         "liquidityDelta: int256(uint256(liquidity)),", "liquidityDelta: -int256(uint256(liquidity)),")]),
     "bounty above donation": (ML, [(
         "uint256 internal constant BOUNTY_BPS = 2_000;", "uint256 internal constant BOUNTY_BPS = 6_000;")]),
+    "beforeSwap reverts": (HK, [("return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);",
+                                 "revert(\"planted\");")]),
+    "term guard removed": (HK, [("        if (block.number > m.endBlock) revert TermOver();\n", "")]),
     "partial coverage breaches": (DL, [("            t.capped = s.capped;\n", "            t.capped = false;\n")]),
     "segments restart at the anchor": (DL, [(
         "            p.sqrtPriceStartX96 = s.sqrtPriceEnd;\n            p.tickStart = s.tickEnd;\n            p.liquidityStart = s.liquidityEnd;\n",
@@ -77,7 +80,7 @@ def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def run_suites(suites: str = SUITES) -> dict[str, str]:
+def run_suites(suites: str = SUITES, reasons: bool = False) -> dict[str, str]:
     r = subprocess.run([FORGE, "test", "--match-contract", suites, "--fuzz-runs", "100", "--json"],
                        cwd=ROOT, capture_output=True, text=True)
     out = {}
@@ -87,7 +90,9 @@ def run_suites(suites: str = SUITES) -> dict[str, str]:
         return {"<compile>": "FAILED: " + (r.stderr or r.stdout)[-300:]}
     for suite, s in data.items():
         for test, t in s["test_results"].items():
-            out[f'{suite.split(":")[-1]}.{test.split("(")[0]}'] = "pass" if t["status"] == "Success" else "FAIL"
+            ok = t["status"] == "Success"
+            out[f'{suite.split(":")[-1]}.{test.split("(")[0]}'] = \
+                "pass" if ok else ("FAIL: " + str(t.get("reason") or "")[:160] if reasons else "FAIL")
     return dict(sorted(out.items()))
 
 
@@ -122,7 +127,7 @@ def main(phase: str):
 SUITES_INV = "ComplianceInvariantTest|BreachInvariantTest|FragmentationInvariantTest"
 # The planted bug each invariant suite exists to catch (rule 6), plus two that test localisation across suites.
 MUTATIONS_INV = ["uncredited proof pays", "pull does not void credit", "bounty above donation", "staleness ignored",
-                 "partial coverage breaches"]
+                 "partial coverage breaches", "beforeSwap reverts", "term guard removed"]
 
 
 def invariants():
@@ -130,7 +135,7 @@ def invariants():
     cache = ROOT / "cache" / "invariant"
     def run():
         shutil.rmtree(cache, ignore_errors=True)  # never replay a persisted counterexample from another build
-        return run_suites(SUITES_INV)
+        return run_suites(SUITES_INV, reasons=True)
     results = {"baseline": run()}
     for name in MUTATIONS_INV:
         path, edits = MUTATIONS2[name]
@@ -147,7 +152,7 @@ def invariants():
         finally:
             f.write_bytes(original)
             assert sha(f) == h, f"{name}: restore failed"
-        print(name, [k for k, v in results[name].items() if v != "pass"], flush=True)
+        print(name, {k: v for k, v in results[name].items() if v != "pass"}, flush=True)
     results["after_restore"] = run()
     (ROOT / "data" / "phase2_invariant_mutations.json").write_text(json.dumps(results, indent=1) + "\n")
     assert all(v == "pass" for v in results["baseline"].values()), "baseline not green"

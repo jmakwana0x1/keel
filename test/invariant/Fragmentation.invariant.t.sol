@@ -171,6 +171,11 @@ contract FragmentationInvariantTest is KeelHarness {
         assertEq(handler.violation(), "", handler.violation());
     }
 
+    function invariant_payWithinProven() public view {
+        (,,,, uint64 paid,,) = hook.mandate(1);
+        assertEq(paid, handler.ghostPaid(), "paid blocks diverge from the D2.2 ghost model");
+    }
+
     function afterInvariant() public view {
         // The premise must have been exercised, or the run proves nothing.
         assertGt(handler.provedBlocks(), 0, "vacuous: nothing was ever proved");
