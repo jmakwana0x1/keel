@@ -1,0 +1,1 @@
+{"measured":"forge test, real PoolManager, spacing 1, 1-wei position on every tick of both sides, storage cooled","max_x_bps_spacing_1":735,"step_bound":768,"max_segments":6,"max_steps":128,"one_segment_capped":2560439,"segmented_breach_opens_window":14413612,"segmented_breach_finalises":14440199,"tx_gas_cap_eip7825":16777216}

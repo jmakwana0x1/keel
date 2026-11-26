@@ -229,6 +229,8 @@ check_payImpliesProven(uint256, uint64)
 check_cappedWalkNeverBreaches(uint256, bool)
 ```
 
+`check_cappedWalkNeverBreaches` is stated **per segment** (D2.10): for any book and any segment budget, a measurement whose last segment stopped capped maps to INCONCLUSIVE, never BREACH. A capped segment is a lower bound and cannot breach on its own. Only a proof whose segments cover the whole range contiguously can breach, and contiguity holds by construction, because each segment resumes from the previous one's exact end state inside one call. The property and the stitched breach do not contradict each other: the first is about a segment, the second about full coverage.
+
 List the remaining manifest lines as intended, not as proved. An eight-property manifest in this timeline is not credible and a judge will say so.
 
 ---

@@ -5,6 +5,7 @@ import {PoolHarness} from "../harness/PoolHarness.sol";
 import {DepthLib} from "../../src/libraries/DepthLib.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 
 /// @notice DepthLib.walk against the real PoolManager, ZERO tolerance: the meter's depth + fee must equal the gross
 /// input the PoolManager charges for an exact-input swap with the limit at the target, and the pool must end at the
@@ -109,5 +110,32 @@ contract MeterVsPoolTest is PoolHarness {
                 assertEq(m.depth + m.fee, _poolGrossIn(target), "tier/gap mismatch");
             }
         }
+    }
+
+    /// @notice D2.10, zero tolerance: a walk too long for one segment, continued across segments, equals the
+    /// PoolManager's own charge for the same price move. Every tick inside the range is initialised (a dust ladder on
+    /// spacing 1), so one segment always caps; the test fails if it ever does not, which keeps it from passing on
+    /// books where stitching never happened.
+    /// forge-config: default.fuzz.runs = 200
+    /// forge-config: ci.fuzz.runs = 1000
+    function testFuzz_stitchedMatchesPool(uint256 seed) public {
+        bool up = seed % 2 == 0;
+        _newPool(0, int24(int256(uint256(keccak256(abi.encode(seed, "t"))) % 20_001)) - 10_000);
+        _randomBook(seed, 1 + seed % 6, 2000);
+        (, int24 spot,,) = manager.getSlot0(pid);
+        uint256 width = 140 + uint256(keccak256(abi.encode(seed, "w"))) % 600; // 140..739 ticks: 2..6 segments
+        for (uint256 k; k < width; k++) {
+            int24 t = up ? spot + int24(int256(k)) : spot - int24(int256(k)) - 1;
+            _addPosition(t, t + 1, 1 + uint128(uint256(keccak256(abi.encode(seed, k))) % 1e6));
+        }
+        uint160 target = TickMath.getSqrtPriceAtTick(up ? spot + int24(int256(width)) : spot - int24(int256(width)));
+
+        DepthLib.Measurement memory one = DepthLib.walk(_params(target, 0));
+        assertTrue(one.capped, "premise: one segment did not cap");
+        (DepthLib.Measurement memory m, uint256 used) = DepthLib.walkSegments(_params(target, 0), DepthLib.MAX_SEGMENTS);
+        assertGt(used, 1, "premise: no stitching happened");
+        assertFalse(m.capped, "six segments did not cover a range under the step bound");
+        assertTrue(m.reachedPrice, "stitched walk did not reach the target");
+        assertEq(m.depth + m.fee, _poolGrossIn(target), "stitched meter != PoolManager");
     }
 }

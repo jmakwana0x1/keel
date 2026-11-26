@@ -732,3 +732,65 @@ Depth mandates already ship. At least two projects are reported, one of them dep
 ### (d) Commercial scope
 
 The market-making acceptance-test story covers only the **on-chain leg** of a market-making agreement. Those agreements are mostly about centralised venues, and KEEL says nothing about that part.
+
+## D2.10 — The segmented breach proof: fragmentation cannot make a mandate unslashable (2026-11-25)
+
+**The hole.** Anyone, the curator included, can place dust positions on every initialisable tick inside the mandated range, until a single walk exhausts `MAX_STEPS = 128`. Rule 1 then does what it should: a capped walk short of the target proves nothing, so the proof is INCONCLUSIVE. Per D2.3, INCONCLUSIVE leaves the shortfall window unchanged. So no window ever opens, no breach ever finalises, and the mandate cannot be slashed. Going inconclusive costs the curator only the retainer, which is far cheaper than losing the principal (D2.5). D1.1's evidence does not reach this case. 128 covers all 20,700 organic Phase 0 walks (max 97 steps), but an adversarial book is constructed, not sampled.
+
+**Decision, in three parts.**
+
+1. **Continuation within one call.** `prove(id, segments)` continues a capped walk for up to `segments ≤ MAX_SEGMENTS = 6` segments (`DepthLib.walkSegments`, reached through `KeelMeter.walkSegments`).
+   - Each segment is `DepthLib.walk`, unchanged.
+   - A segment that stops capped is resumed from its exact end state: price, tick and active liquidity, which `Measurement` now returns.
+   - Depth is additive over disjoint price intervals, so the stitched depth equals one uncapped walk's.
+   - `prove(id)` is `prove(id, 1)`. The honest compliant path still runs no walk at all.
+2. **Coverage, the rule-1 line.** The stitched result is capped, and so INCONCLUSIVE, unless its last segment covered the rest of the range. `check_cappedWalkNeverBreaches` therefore holds **per segment**: every capped segment is a lower bound and cannot breach on its own. Only a proof that covers the whole range contiguously can breach. VERIFICATION.md §6 states the property this way.
+3. **A post-time bound makes coverage structural.**
+   - Every step of a walk stops at a multiple of the tick spacing (an initialised tick or a bitmap-word edge) or at the target, and each stop is a distinct price.
+   - So a walk to `x` takes at most `R/spacing + 3` steps, where R is the tick width of the wider (downward) side. That holds **whatever the book holds**: dust cannot raise it (`MandateLib.stepBound`).
+   - `post()` refuses a mandate whose bound exceeds `MAX_SEGMENTS · MAX_STEPS = 768`, through `KeelMeter.coverable`. It lives in the meter, because inlined in the hook it cost 731 bytes.
+   - For an accepted mandate, then, no book exists that one segmented proof cannot cover.
+   - The worst case is measured: spacing 1, `x = 735` bps (the widest accepted), a 1-wei position on every tick of both sides, and a curator short on both. It costs **14,413,612** gas to open a window and **14,440,199** to finalise, under the EIP-7825 per-transaction cap of 16,777,216 (`data/phase2_segments.json`, which asserts it).
+   - The measured book's upward side is ~25 ticks narrower than the bound assumes, so the theoretical worst case is at most ~58 steps (~0.5M gas, `[modelled]` at the measured 9.1–9.2k per crossing) above it. That is still under the cap.
+
+**What the bound costs.** Mandates on fine-spacing pools are limited:
+- spacing 1: `x ≤ 735` bps, ±7.35%;
+- spacing 10: up to `MAX_X_BPS` (no limit in practice);
+- spacing 60 and wider: unaffected.
+
+A ±7% obligation on a spacing-1 (stable-pair) pool is already far wider than such pools trade.
+
+**Evidence.**
+- *Zero tolerance against the `PoolManager`.* `MeterVsPoolTest.testFuzz_stitchedMatchesPool` builds random books plus a dust ladder of 140–739 ticks on spacing 1, so one segment always caps; the test fails if it does not. The stitched depth + fee then equals the pool's own charge for the same price move. 200 runs locally, 1,000 under CI. Stitching adds no tolerance.
+- *The hook-level tests* (`test/unit/Segmented.t.sol`):
+  - On a ±3% dust ladder, a single walk is INCONCLUSIVE and opens nothing.
+  - Six segments reach BREACH, and finalise N blocks later.
+  - A capped single walk N blocks later does not finalise.
+  - Two segments (256 steps) on ~305 ticks stay INCONCLUSIVE.
+  - Segments clamp at 6.
+  - The step bound holds on a fully initialised book.
+  - `post` refuses 800 bps and accepts 700 bps at spacing 1.
+- *Mutations, observed failing* (Phase 2 set):
+  - "partial coverage breaches" (the stitched result drops the last segment's `capped`) fails `test_partialCoverageStaysInconclusive`. It also fails the single-walk, finalise and clamp tests, because `prove(id)` goes through the same line.
+  - "segments restart at the anchor" (the resume state is not carried) fails `test_segmentsReachBreachAndFinalise` and `testFuzz_stepBoundHolds`.
+
+**Funding: option 1, the bounty is unchanged.** `BOUNTY_BPS = 2_000` of `accrued` to the finalising prover, through `_release`, with `bounty < donation` intact.
+- With the post-time bound, a watcher's cost is bounded by a measured constant: at most about **28.9M gas** for the opening and finalising proofs together, worst case.
+- A watcher therefore profits iff `0.2 · accrued > (G_open + G_final) · gasPrice`. At the worst case that means `accrued > 1.44 × 10⁸ · gasPrice` (in wei).
+- At 0.001 gwei (10⁶ wei), a cheap-chain price, that is `accrued > 1.44 × 10¹⁴` wei, about 0.00014 ETH. At 10 gwei it is about 1.44 ETH. `[modelled]` gas prices; the gas is measured.
+- **The residual, named.** Above that threshold the attack no longer works technically, but below it, it still works economically: no third-party watcher walks a fragmented range at a loss. It also bites hardest early in a term, when `accrued` is small. In the limit `accrued = 0`, nobody has a bounty to win on *any* book, fragmented or not. That case predates D2.10. The issuer is the natural watcher there: a slash refunds the remaining escrow immediately (D2.4).
+- **Rejected: a constant-bounded segment reimbursement** through `_release`, as a third outflow beside bounty and donation. It needs a new outflow invariant, a new line in the slash accounting and hook bytes the size budget does not have (D2.7). And the bound already caps the watcher's cost, so the threshold is a published number, not an open-ended one.
+- **Rejected: making the opening prover pay for coverage** so that only the closing proof earns. That is already the case: only the finalising proof is paid. Charging the opener as well would tax the watcher the mechanism depends on.
+
+**Rejected alternatives to the fix.**
+- *Prover-chosen sub-intervals stitched across transactions within a block* (the handoff's form).
+  - A segment resumed in a later transaction has to carry the stopped walk's active liquidity in storage. A position added or removed across that point in between makes the stored value wrong, and v4 offers no way to check it without re-walking from spot.
+  - An added position can underflow the next crossing, which makes the stitch revert. That re-opens the unslashable hole by another route.
+  - In one call, the book cannot change between segments.
+- *Prover-chosen cut points within one call.* They add a failure mode, a gap between where a capped segment stopped and the next cut, and buy nothing over resuming from the exact end state. In the build, contiguity holds by construction.
+- *Raising `MAX_STEPS`.* It raises the attacker's cost without removing the attack, and charges every honest proof for the privilege. The attack is O(dust positions); this defence would be O(gas on every proof). Segments cost only the prover who asks for them.
+- *Ignoring low-liquidity ticks.* That breaks the zero-tolerance differential, which is the project's strongest claim. The walk must cross every initialised tick to equal `PoolManager`.
+- *A minimum tick spacing for third-party positions.* Not available: the hook has zero liquidity-lifecycle permission bits by architectural invariant, so it cannot gate anyone else's liquidity.
+- *The post-time bound alone, with no segments* (`MAX_SEGMENTS = 1`). It would limit spacing-1 mandates to about ±1.2%.
+
+**Size.** `KeelHook` 20,690 bytes (+765 over D2.7: the `prove` overload and its plumbing). `KeelMeter` 10,816. Headroom under EIP-170: 3,886 bytes.

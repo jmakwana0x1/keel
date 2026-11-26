@@ -46,7 +46,7 @@ jobs:
           version: v1.8.1
       - run: FOUNDRY_PROFILE=ci forge test
       - run: python3 sim/check_phase1_saturation.py
-      - run: git diff --exit-code data/phase1_saturation_solidity.csv data/phase1_contribution.json data/phase1_gas.json data/phase2_gas.json
+      - run: git diff --exit-code data/phase1_saturation_solidity.csv data/phase1_contribution.json data/phase1_gas.json data/phase2_gas.json data/phase2_segments.json
 
   absence:
     # The Cannot list, as text. Comment lines are filtered FIRST: a codebase that documents its own virtues would

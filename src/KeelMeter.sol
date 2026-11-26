@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {DepthLib} from "./libraries/DepthLib.sol";
+import {MandateLib} from "./libraries/MandateLib.sol";
 import {V4TickSource} from "./adapters/V4TickSource.sol";
 import {ITickSource} from "./interfaces/ITickSource.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -31,5 +32,19 @@ contract KeelMeter {
 
     function walk(DepthLib.DepthParams memory p) external view returns (DepthLib.Measurement memory) {
         return DepthLib.walk(p);
+    }
+
+    /// @notice True when one segmented proof can cover a walk to `x` on any book in a pool of this spacing (D2.10).
+    function coverable(uint256 xBps, int24 tickSpacing) external pure returns (bool) {
+        return MandateLib.stepBound(xBps, tickSpacing) <= DepthLib.MAX_SEGMENTS * DepthLib.MAX_STEPS;
+    }
+
+    /// @notice The walk continued across up to `segments` capped segments in one call (D2.10).
+    function walkSegments(DepthLib.DepthParams memory p, uint256 segments)
+        external
+        view
+        returns (DepthLib.Measurement memory m, uint256 used)
+    {
+        return DepthLib.walkSegments(p, segments);
     }
 }

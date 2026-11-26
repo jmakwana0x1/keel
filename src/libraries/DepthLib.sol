@@ -63,6 +63,9 @@ library DepthLib {
         bool capped; // stopped at MAX_STEPS short of both the price and the depth target
         bool exhausted; // the unbounded input ran out short of the target price
         bool anchorMismatch; // liquidity would go negative on a crossing
+        uint160 sqrtPriceEnd; // where the walk stopped: a capped walk resumes from exactly this state (D2.10)
+        int24 tickEnd;
+        uint128 liquidityEnd;
     }
 
     /// @notice The meter. Stops the instant accumulated depth reaches `depthTarget`, which is what makes the
@@ -136,9 +139,56 @@ library DepthLib {
             }
             sqrtPriceX96 = sqrtPriceAfterX96;
         }
+        m.sqrtPriceEnd = sqrtPriceX96;
+        m.tickEnd = tick;
+        m.liquidityEnd = liquidity;
         m.reachedPrice = sqrtPriceX96 == p.sqrtPriceTargetX96 && !m.anchorMismatch;
         m.proven = p.depthTarget != 0 && m.depth >= p.depthTarget;
         if (m.proven) m.capped = false; // a lower bound that clears the target is a proof, not a partial
+    }
+
+    /// @notice Most segments one proof may stitch (D2.10). Bounds the continuation loop at compile time (rule 5);
+    /// MAX_SEGMENTS · MAX_STEPS = 768 steps per side, sized so the worst two-sided proof fits one transaction
+    /// (data/phase2_segments.json).
+    uint256 internal constant MAX_SEGMENTS = 6;
+
+    /// @notice A walk continued across up to `segments` capped segments (D2.10). Each segment is `walk` unchanged;
+    /// a segment that stops capped is resumed from its exact end state (price, tick, liquidity) inside the same call,
+    /// so the book cannot change between segments and contiguity holds by construction. Depth is additive over
+    /// disjoint price intervals, so the stitched depth equals one uncapped walk's.
+    /// Per segment, `check_cappedWalkNeverBreaches` holds: a capped segment is a lower bound. The stitched result is
+    /// capped, hence INCONCLUSIVE, unless the last segment covered the rest of the range.
+    function walkSegments(DepthParams memory p, uint256 segments)
+        internal
+        view
+        returns (Measurement memory t, uint256 used)
+    {
+        if (segments == 0) segments = 1;
+        uint256 target = p.depthTarget;
+        for (uint256 k; k < MAX_SEGMENTS; k++) {
+            if (k == segments) break;
+            Measurement memory s = walk(p);
+            used = k + 1;
+            t.depth += s.depth;
+            t.fee += s.fee;
+            t.steps += s.steps;
+            t.crossings += s.crossings;
+            t.capped = s.capped;
+            t.exhausted = s.exhausted;
+            t.anchorMismatch = s.anchorMismatch;
+            t.reachedPrice = s.reachedPrice;
+            t.sqrtPriceEnd = s.sqrtPriceEnd;
+            t.tickEnd = s.tickEnd;
+            t.liquidityEnd = s.liquidityEnd;
+            if (!s.capped) break;
+            // contiguity: the next segment starts exactly where this one stopped
+            p.sqrtPriceStartX96 = s.sqrtPriceEnd;
+            p.tickStart = s.tickEnd;
+            p.liquidityStart = s.liquidityEnd;
+            if (target != 0) p.depthTarget = target - t.depth; // > 0: a capped segment is short of the target
+        }
+        t.proven = target != 0 && t.depth >= target;
+        if (t.proven) t.capped = false;
     }
 
     /// @notice The only mapping from a measurement to a decision. A capped or exhausted walk never breaches.

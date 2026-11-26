@@ -24,14 +24,14 @@ Every figure below traces to a committed file in `data/`. Figures marked *machin
 
 | Crossings | Steps | Gas (storage priced **cold**) |
 |---:|---:|---:|
-| 1 | 2 | 28,740 |
-| 3 | 4 | 46,923 |
-| 9 | 10 | 101,538 |
-| 64 | 65 | 604,712 |
-| 127 | 128 | 1,182,806 |
-| 127, compliant early exit at 10% | — | 133,464 |
+| 1 | 2 | 29,177 |
+| 3 | 4 | 47,368 |
+| 9 | 10 | 102,007 |
+| 64 | 65 | 605,407 |
+| 127 | 128 | 1,183,760 |
+| 127, compliant early exit at 10% | — | 134,106 |
 
-The marginal cost is about **9,100–9,200 gas per crossing** (`data/phase1_gas.json`, machine-checked; coldness guarded by `test/artifacts/GasColdness.t.sol`). For comparison, Hydra's walk cost about 21.4–21.6k per crossing (`hydra/data/counterfactual_gas.json`). The two figures were not measured the same way: Hydra used warm reads at tick spacing 60, and these are cold reads at spacing 1. Cold reads cost more, so the comparison is conservative against KEEL.
+The marginal cost is about **9,100–9,200 gas per crossing** (9,106 and 9,180) (`data/phase1_gas.json`, machine-checked; coldness guarded by `test/artifacts/GasColdness.t.sol`). For comparison, Hydra's walk cost about 21.4–21.6k per crossing (`hydra/data/counterfactual_gas.json`). The two figures were not measured the same way: Hydra used warm reads at tick spacing 60, and these are cold reads at spacing 1. Cold reads cost more, so the comparison is conservative against KEEL.
 
 ### Contribution accuracy
 
@@ -53,15 +53,21 @@ A rounding bug planted inside v4-core's `SqrtPriceMath` was not caught by the me
 
 | Path | Gas (storage priced **cold**) |
 |---|---:|
-| Compliant, 4 bands, first proof (zero-to-nonzero payment writes) | 133,475 |
-| Same, with a ladder of initialised ticks inside the target range | 133,475 |
-| Compliant, steady state (next block) | 99,275 |
-| Breach, opens the window (two walks across ladder rungs) | 160,694 |
-| Breach, finalises: slash, bounty, donate | 258,500 |
+| Compliant, 4 bands, first proof (zero-to-nonzero payment writes) | 133,645 |
+| Same, with a ladder of initialised ticks inside the target range | 133,645 |
+| Compliant, steady state (next block) | 99,445 |
+| Breach, opens the window (two walks across ladder rungs) | 164,623 |
+| Breach, finalises: slash, bounty, donate | 262,691 |
 
 From `data/phase2_gas.json`, machine-checked. The artifact asserts one claim: **the compliant path runs no walk, so its gas does not depend on the book**. That assertion was observed failing (`194103 != 170388`) when a walk was planted on the compliant path. Its first version compared two books that both had initialised ticks only where the walk could not see them, and it passed with the planted walk too. It was rebuilt so the comparison is not vacuous.
 
-The compliant path is **not** always the cheapest. A curator's first compliant proof costs more than a breach proof whose walks are short (133,475 against 121,680 in an earlier book with the price past the ladder), because it makes first-time zero-to-nonzero writes to the payment slots. That was the original assertion, and it was false.
+The compliant path is **not** always the cheapest. A curator's first compliant proof costs more than a breach proof whose walks are short (133,475 against 121,680 at D2.8, in an earlier book with the price past the ladder), because it makes first-time zero-to-nonzero writes to the payment slots. That was the original assertion, and it was false.
+
+### Fragmentation cannot make a mandate unslashable (D2.10)
+
+Dust on every tick inside the mandated range caps a single walk, and a capped walk proves nothing (rule 1). Left alone, that would keep a breach from ever finalising. So `prove(id, segments)` continues a capped walk for up to 6 segments in one call. Each segment resumes from the exact state where the last one stopped. Stitched walks equal the `PoolManager`'s own charge at **zero tolerance** across 200 fuzzed dust-ladder books (`MeterVsPoolTest.testFuzz_stitchedMatchesPool`). A proof that leaves any part of the range unwalked stays INCONCLUSIVE.
+
+`post()` also refuses any mandate whose range could hold more steps than six segments can walk. That bound depends only on `x` and the tick spacing, never on the book, so no book can push an accepted mandate past one proof. The worst accepted case (spacing 1, ±7.35%, every tick initialised, both sides short) costs **14.41M** gas to open a window and **14.44M** to finalise, under the 16.78M EIP-7825 transaction cap (`data/phase2_segments.json`, machine-checked).
 
 ### What the Phase 2 verification found
 
@@ -76,4 +82,6 @@ Stated before anyone has to find them.
 - **Liveness is assumed** (D1.3). A curator who is compliant but never proves inside a staleness window can be slashed for a stretch that was in fact compliant. Proving is cheap on the compliant path, and a window gives N blocks of notice, but nobody proves for you.
 - **Pay scales with proving cadence** (D2.2). One compliant proof pays one block, so a curator who wants every block paid proves every block. That suits a cheap-block chain and not mainnet.
 - **A slash freezes the curator's principal** (D2.5). The slash itself takes accrued value only. But negative liquidity deltas are allowed only while a mandate is ACTIVE, so a slashed curator's bands stay in the pool permanently. That, not the accrued retainer, is the real penalty.
+- **A fragmented range can still be uneconomic to prove** (D2.10). The bounty is 20% of accrued. A worst-case fragmented breach costs a watcher up to ~28.9M gas across the opening and finalising proofs. So a third-party watcher profits only when `accrued > 1.44 × 10⁸ · gasPrice`. That is about 0.00014 ETH at 0.001 gwei and 1.44 ETH at 10 gwei `[modelled]` (gas prices are assumptions; the gas is measured). Below that, the attack no longer works technically but still works economically. When `accrued` is zero, nobody has a bounty on any book. The issuer, refunded at a slash, is then the watcher of last resort.
+- **Fine-spacing pools take narrower mandates** (D2.10). At tick spacing 1, `x` is capped at 7.35% so that every accepted range stays provable in one transaction.
 - **Phase 2 scope cuts** (D2.6): one live mandate per pool, ERC-20 pools only, a fixed retainer rate, and no skim yet.

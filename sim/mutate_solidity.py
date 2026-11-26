@@ -45,7 +45,7 @@ MUTATIONS = {
 }
 
 # Phase 2: one planted edit per lifecycle guarantee, at the one site where it lives.
-SUITES2 = "KeelHookTest|NegativeSiteTest|MandateLibTest|DepthLibUnitTest|DepthBoundaryTest"
+SUITES2 = "KeelHookTest|NegativeSiteTest|SegmentedTest|MandateLibTest|DepthLibUnitTest|DepthBoundaryTest"
 MUTATIONS2 = {
     "negative site ungated": (HK, [(
         "if (actor != m.curator || m.status != MandateLib.Status.ACTIVE) revert NotCurator();",
@@ -65,6 +65,10 @@ MUTATIONS2 = {
         "liquidityDelta: int256(uint256(liquidity)),", "liquidityDelta: -int256(uint256(liquidity)),")]),
     "bounty above donation": (ML, [(
         "uint256 internal constant BOUNTY_BPS = 2_000;", "uint256 internal constant BOUNTY_BPS = 6_000;")]),
+    "partial coverage breaches": (DL, [("            t.capped = s.capped;\n", "            t.capped = false;\n")]),
+    "segments restart at the anchor": (DL, [(
+        "            p.sqrtPriceStartX96 = s.sqrtPriceEnd;\n            p.tickStart = s.tickEnd;\n            p.liquidityStart = s.liquidityEnd;\n",
+        "")]),
 }
 
 
@@ -114,5 +118,28 @@ def main(phase: str):
     assert results["after_restore"] == results["baseline"], "not green after restore"
 
 
+def probe(names: list[str]):
+    """Run only the named Phase 2 mutations and print what fails. Writes nothing; the transcript comes from main."""
+    for name in names:
+        path, edits = MUTATIONS2[name]
+        f = ROOT / path
+        original = f.read_bytes()
+        h = sha(f)
+        text = original.decode()
+        for old, new in edits:
+            assert text.count(old) == 1, f"{name}: anchor occurs {text.count(old)} times"
+            text = text.replace(old, new)
+        f.write_text(text)
+        try:
+            r = run_suites(SUITES2)
+        finally:
+            f.write_bytes(original)
+            assert sha(f) == h, f"{name}: restore failed"
+        print(name, "->", [k for k, v in r.items() if v != "pass"], flush=True)
+
+
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "1")
+    if len(sys.argv) > 2 and sys.argv[1] == "probe":
+        probe(sys.argv[2:])
+    else:
+        main(sys.argv[1] if len(sys.argv) > 1 else "1")

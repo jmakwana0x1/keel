@@ -2,6 +2,8 @@
 pragma solidity 0.8.26;
 
 import {DepthLib} from "./DepthLib.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 
 /// @title MandateLib — the lifecycle as pure transitions
 /// @notice Every decision the hook takes about a proof is a pure function here, so it can be unit-tested and stated
@@ -87,6 +89,18 @@ library MandateLib {
                 e.finalise = true;
             }
         }
+    }
+
+    /// @notice An upper bound on the steps a walk to `x` can take on ANY book in a pool of this spacing (D2.10).
+    /// Every step of a walk stops at a multiple of the tick spacing (an initialised tick or a bitmap-word edge, both
+    /// multiples) or at the target, and each stop is a distinct price. The downward side is the wider one
+    /// (|ln(1-x)| > ln(1+x)), spanning R ticks, so a walk takes at most R/spacing + 3 steps (the +3 covers the
+    /// partial ticks at either end and the final step). The book does not enter: dust cannot raise it.
+    function stepBound(uint256 xBps, int24 tickSpacing) internal pure returns (uint256) {
+        uint256 f = FixedPointMathLib.sqrt((10_000 - xBps) * 1e32); // sqrt(1 - x) * 1e18
+        int24 t = TickMath.getTickAtSqrtPrice(uint160(f * (1 << 96) / 1e18));
+        uint256 r = uint256(int256(-t)) + 1;
+        return r / uint256(int256(tickSpacing)) + 3;
     }
 
     /// @notice The prover's share of a slash. Below 5_000, so the bounty is strictly below the donation (D2.4).

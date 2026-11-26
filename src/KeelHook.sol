@@ -185,6 +185,8 @@ contract KeelHook is BaseHook, IUnlockCallback {
         if (!(t.payCurrency == key.currency0 || t.payCurrency == key.currency1)) revert BadTerms();
         if (t.stalenessBlocks < MIN_STALENESS_BLOCKS || t.stalenessBlocks > MAX_STALENESS_BLOCKS) revert BadTerms();
         if (t.xBps == 0 || t.xBps > MAX_X_BPS) revert BadTerms();
+        // every accepted range is coverable by one segmented proof, whatever the book holds (D2.10)
+        if (!meter.coverable(t.xBps, key.tickSpacing)) revert BadTerms();
         if (t.depth0 == 0 && t.depth1 == 0) revert BadTerms();
         if (t.retainerPerBlock == 0 || t.termBlocks == 0 || t.termBlocks > MAX_TERM_BLOCKS) revert BadTerms();
         if (t.acceptDeadline < block.number) revert BadTerms();
@@ -254,12 +256,22 @@ contract KeelHook is BaseHook, IUnlockCallback {
     /// @notice Permissionless measurement. Never charges the caller anything but gas (rule: a failed prove costs
     /// only gas). Returns the combined verdict (D2.1) and applies the staleness rule (D2.3).
     function prove(uint256 id) external returns (DepthLib.Verdict v) {
+        return _prove(id, 1);
+    }
+
+    /// @notice The same proof, with a capped walk continued for up to `segments` segments (D2.10). Anyone may pay
+    /// for the extra coverage; a range fragmented to cap one walk is still decidable.
+    function prove(uint256 id, uint256 segments) external returns (DepthLib.Verdict v) {
+        return _prove(id, segments);
+    }
+
+    function _prove(uint256 id, uint256 segments) internal returns (DepthLib.Verdict v) {
         Mandate storage m = mandates[id];
         if (m.status != MandateLib.Status.ACTIVE) revert BadState();
         if (block.number > m.endBlock) revert TermOver();
         uint256 cUp;
         uint256 cDown;
-        (v, cUp, cDown) = _measure(m);
+        (v, cUp, cDown) = _measure(m, segments);
 
         uint64 b = uint64(block.number);
         bool credited = m.lastReshapeBlock != b;
@@ -332,7 +344,7 @@ contract KeelHook is BaseHook, IUnlockCallback {
 
     // ------------------------------------------------------------------ measurement
 
-    function _measure(Mandate storage m) internal view returns (DepthLib.Verdict v, uint256 cUp, uint256 cDown) {
+    function _measure(Mandate storage m, uint256 segments) internal view returns (DepthLib.Verdict v, uint256 cUp, uint256 cDown) {
         PoolId pid = m.poolId;
         (uint160 sp, int24 tick,, uint24 lpFee) = poolManager.getSlot0(pid);
         uint128 liq = poolManager.getLiquidity(pid);
@@ -340,12 +352,12 @@ contract KeelHook is BaseHook, IUnlockCallback {
         DepthLib.Verdict down;
         bool mu = m.terms.depth1 != 0;
         bool md = m.terms.depth0 != 0;
-        if (mu) (up, cUp) = _side(m, sp, tick, liq, lpFee, true);
-        if (md) (down, cDown) = _side(m, sp, tick, liq, lpFee, false);
+        if (mu) (up, cUp) = _side(m, sp, tick, liq, lpFee, true, segments);
+        if (md) (down, cDown) = _side(m, sp, tick, liq, lpFee, false, segments);
         v = MandateLib.combine(mu, up, md, down);
     }
 
-    function _side(Mandate storage m, uint160 sp, int24 tick, uint128 liq, uint24 lpFee, bool up)
+    function _side(Mandate storage m, uint160 sp, int24 tick, uint128 liq, uint24 lpFee, bool up, uint256 segments)
         internal
         view
         returns (DepthLib.Verdict, uint256 c)
@@ -369,7 +381,7 @@ contract KeelHook is BaseHook, IUnlockCallback {
             );
         }
         if (c >= depthTarget) return (DepthLib.Verdict.COMPLIANT, c);
-        DepthLib.Measurement memory w = meter.walk(
+        (DepthLib.Measurement memory w,) = meter.walkSegments(
             DepthLib.DepthParams({
                 sqrtPriceStartX96: sp,
                 tickStart: tick,
@@ -379,7 +391,8 @@ contract KeelHook is BaseHook, IUnlockCallback {
                 feePips: lpFee,
                 tickSpacing: keys[m.poolId].tickSpacing,
                 source: tickSource[m.poolId]
-            })
+            }),
+            segments
         );
         return (MandateLib.sideVerdict(false, w), c);
     }
@@ -583,6 +596,6 @@ contract KeelHook is BaseHook, IUnlockCallback {
 
     /// @notice Measure without effects: what prove() would decide now.
     function preview(uint256 id) external view returns (DepthLib.Verdict v, uint256 cUp, uint256 cDown) {
-        return _measure(mandates[id]);
+        return _measure(mandates[id], 1);
     }
 }
