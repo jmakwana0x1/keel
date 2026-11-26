@@ -703,20 +703,32 @@ The framing: the buyer is a lending market, not an issuer, and the product is a 
 
 **Claim.** Rulebook liquidity obligations are denominated in **posted size**: quotes of a size, at a spread, for a share of trading time. KEEL denominates one in **cost to move** the price by `x`.
 
-**Sources, as supplied in review.** Two fetch attempts on 2026-11-25, against EUR-Lex and the NYSE rule guide, returned no body. So these are **not yet verified against primary text** and must not be published as verified until they are (`docs/CLAIMS.md`, open claims).
-- **MiFID II, Commission Delegated Regulation (EU) 2017/578.**
-  - Art. 2(1)(b): the agreement must require "posting firm, simultaneous two-way quotes of comparable size and competitive prices".
-  - Art. 1(2)(b): simultaneous two-way means "both the bid and the ask-price are present in the order book at the same time".
-  - Art. 1(2)(c): comparable size means sizes that "do not diverge by more than 50 % from each other".
-  - Art. 1(2)(d): competitive prices means quotes "posted at or within the maximum bid-ask range set by the trading venue".
-  - Arts. 1(1)(b) and 2(1)(b): for at least 50 % of daily trading hours of continuous trading, excluding auctions.
-- **NYSE Rule 104.**
-  - (a)(1)(A): a quote at the NBBO for 15 % of the day under 1M ADV, 10 % at or above it, and 25 % for ETPs.
-  - (a)(1)(A)(i)–(iv): within a Designated Percentage of the NBBO: 8 % for Tier 1, 28 % for Tier 2 at $1 or more, and 30 % for Tier 2 under $1.
-  - (g)(2): re-entry keyed to 50 % of the *published* bid or offer size.
-  - (f)(2)–(3): maintain price continuity "with reasonable depth". Depth is **not quantified in the rule**.
+**Sources.** Both regimes were retrieved on 2026-11-26. The provenance differs, and is stated per source.
 
-**Scope.** These are the two largest regimes, and the claim is limited to them. Deutsche Börse, Nasdaq, ASX and TSX are unchecked. NYSE does issue numeric Depth Guidelines per security, but they are not in the rule text. So the claim is about the **rulebook standard**, not about the exchange having no number.
+*NYSE Rule 104, as filed with the SEC* (Exhibit 5 to Release 34-87056, SR-NYSE-2019-34, the 2019 marked-up rule text): `https://www.sec.gov/files/rules/sro/nyse/2019/34-87056-ex5.pdf`. **Read in this repository.** A copy is committed at `docs/sources/nyse-rule-104_SR-NYSE-2019-34_ex5.pdf` (sha256 `b2b8d785…162ace1`). Quoted with the filing's deletions removed and its additions kept:
+- **104(a)(1):** "maintaining a continuous two-sided quote with a displayed size of at least one round lot." That is a numeric **size** minimum. Size is not depth, and the claim below is about depth.
+- **104(a)(1)(A):** "DMM units must maintain a bid or an offer at the National Best Bid and National Best Offer ("inside") (i) at least 15% of the trading day for securities that are not ETPs with a consolidated average daily volume of less than one million shares, (ii) at least 10% of the trading day for securities that are not ETPs with a consolidated average daily volume equal to or greater than one million shares, and (iii) at least 25% of the trading day for ETPs."
+- **104(a)(1)(B)(iii):** "the "Designated Percentage" shall be 8% for Tier 1 NMS Stocks …, 28% for Tier 2 NMS Stocks … with a price equal to or greater than $1.00, and 30% for Tier 2 NMS Stocks with a price lower than $1.00, except that between 9:30 a.m. and 9:45 a.m. and between 3:35 p.m. and the close of trading, when Rule 80C is not in effect, the Designated Percentage shall be 20% for Tier 1 NMS Stocks …". The handoff cited this as (a)(1)(A)(i)–(iv); the filing numbers it (B)(iii).
+- **104(f)(2):** "The maintenance of a fair and orderly market implies the maintenance of price continuity with reasonable depth".
+- **104(f)(3):** "The Exchange will supply DMMs with suggested Depth Guidelines for each security in which a DMM is registered. The administration of the Depth Guidelines will be contained in notices periodically issued to all DMMs."
+- **104(g)(2)(B):** re-entry is required after an Aggressing Transaction that "(1) is 10,000 shares or more or has a market value of $200,000 or more and (2) exceeds 50% of the published offer (bid) size".
+
+The filing is the 2019 text. Later amendments are unchecked.
+
+*MiFID II, Commission Delegated Regulation (EU) 2017/578*: `https://www.legislation.gov.uk/eur/2017/578/data.html`. **Retrieved by the project owner, quoted from that retrieval. Not re-read in this repository**: legislation.gov.uk and EUR-Lex both return an empty body to automated fetches from here.
+- **Art. 2(1)(b):** "the minimum obligations to be met by the investment firm in terms of presence, size and spread that shall require at least posting firm, simultaneous two-way quotes of comparable size and competitive prices in at least one financial instrument on the trading venue for at least 50 % of daily trading hours of during which continuous trading takes place excluding opening and closing auctions and calculated for each trading day". "of during which" is as printed in the retrieval.
+- **Art. 1(2)(b):** "quotes shall be deemed simultaneous two-way quotes if they are posted in such a way that both the bid and the ask-price are present in the order book at the same time".
+- **Art. 1(2)(c):** "two quotes shall be deemed of comparable size when their sizes do not diverge by more than 50 % from each other".
+- **Art. 1(2)(d):** "quotes shall be deemed to have competitive prices where they are posted at or within the maximum bid-ask range set by the trading venue and imposed upon every investment firm that has signed a market making agreement with that trading venue".
+- **Art. 1(1)(b):** "for at least 50 % of the daily trading hours of continuous trading at the respective trading venue, excluding opening and closing auctions".
+
+**The claim, as narrow as the sources allow.**
+- Both regimes state their obligations in **presence, size and spread**: time at or near the quote, size relative to the other side or to a round lot, and price within a range.
+- In NYSE's rulebook, the depth standard is the phrase **"reasonable depth"**, and it carries no number. The numbers are suggested Depth Guidelines per security, issued in periodic notices outside the rule. So the claim is **not** that NYSE has no depth number.
+- In MiFID II RTS 8, the quoted articles define the obligation by presence, size and spread. No depth term appears in them. The rest of the regulation has not been read here.
+- KEEL states its obligation in cost to move the price by `x`.
+
+**Scope.** Two regimes, the two largest, read as above. Deutsche Börse, Nasdaq, ASX and TSX are unchecked.
 
 **Rejected:** "forty years of market-maker rules" and any span-of-history framing (`docs/CLAIMS.md` row 11).
 
@@ -752,6 +764,13 @@ The market-making acceptance-test story covers only the **on-chain leg** of a ma
    - For an accepted mandate, then, no book exists that one segmented proof cannot cover.
    - The worst case is measured: spacing 1, `x = 735` bps (the widest accepted), a 1-wei position on every tick of both sides, and a curator short on both. It costs **14,413,612** gas to open a window and **14,440,199** to finalise, under the EIP-7825 per-transaction cap of 16,777,216 (`data/phase2_segments.json`, which asserts it).
    - The measured book's upward side is ~25 ticks narrower than the bound assumes, so the theoretical worst case is at most ~58 steps (~0.5M gas, `[modelled]` at the measured 9.1–9.2k per crossing) above it. That is still under the cap.
+
+**Stated assumption: the guarantee rests on a gas margin.** Coverage is structural only while the worst coverable proof fits in one transaction.
+- The measured worst case is 14,440,199 gas, **86.1%** of the EIP-7825 cap of 16,777,216.
+- The modelled theoretical worst is ≈ 14.97M, **89.2%** of the cap `[modelled]`.
+- That leaves about **1.81M gas**: ~1.18k per step across 2 × 768 steps, or **~13%** of the measured 9.1–9.2k per crossing.
+
+Two changes would break the guarantee: an opcode repricing (cold `SLOAD`, `CALL`) that raises per-crossing cost by more than that, or a target chain with a lower per-transaction cap. Either way accepted mandates could become unprovable, and the guarantee would silently become economic again. The bound is therefore restated against the deploy chain's cap at deploy (`data/phase2_segments.json` asserts it for 2^24), and `MAX_SEGMENTS` is the constant to lower if the margin closes.
 
 **What the bound costs.** Mandates on fine-spacing pools are limited:
 - spacing 1: `x ≤ 735` bps, ±7.35%;

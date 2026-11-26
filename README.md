@@ -63,7 +63,11 @@ From `data/phase2_gas.json`, machine-checked. The artifact asserts one claim: **
 
 The compliant path is **not** always the cheapest. A curator's first compliant proof costs more than a breach proof whose walks are short (133,475 against 121,680 at D2.8, in an earlier book with the price past the ladder), because it makes first-time zero-to-nonzero writes to the payment slots. That was the original assertion, and it was false.
 
-### Fragmentation cannot make a mandate unslashable (D2.10)
+### No book can put an accepted mandate beyond proof (D2.10)
+
+**For an accepted mandate, no book exists that one segmented proof cannot cover.** That is structural. A walk to `x` stops only at multiples of the tick spacing or at the target, so its step count is bounded by `R/spacing + 3`, whatever the book holds. `post()` refuses any range above six segments of `MAX_STEPS`. Dust cannot raise the bound, so fragmentation cannot make an accepted range unprovable. The scope is exact: *accepted* mandates, *coverage*, *by fragmentation*. It does not mean a mandate is always worth slashing; the economic residual is in Limitations. It also rests on one stated assumption: the worst coverable proof is 86% of the 2^24 transaction cap, and ~89% `[modelled]` at the theoretical worst, a ~13% margin on per-crossing gas.
+
+#### How
 
 Dust on every tick inside the mandated range caps a single walk, and a capped walk proves nothing (rule 1). Left alone, that would keep a breach from ever finalising. So `prove(id, segments)` continues a capped walk for up to 6 segments in one call. Each segment resumes from the exact state where the last one stopped. Stitched walks equal the `PoolManager`'s own charge at **zero tolerance** across 200 fuzzed dust-ladder books (`MeterVsPoolTest.testFuzz_stitchedMatchesPool`). A proof that leaves any part of the range unwalked stays INCONCLUSIVE.
 

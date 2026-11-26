@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.14"
       - run: pip install -r sim/requirements.txt
-      - run: cd sim && python model.py
+      - run: cd sim && python model.py && python p99_conventions.py
       - run: git diff --exit-code data/
 
   build:

@@ -1,0 +1,24 @@
+{
+ "ratio": "naive / true depth",
+ "percentile": 0.99,
+ "cells": {
+  "long-tail ±10%": {
+   "n": 1899,
+   "linear (pandas default, used in phase0_results.md)": 3.9145,
+   "nearest-rank, ceil(0.99 n) (numpy inverted_cdf)": 4.1754,
+   "round(0.99 (n-1)) (numpy nearest)": 3.9091
+  },
+  "pooled ±10%": {
+   "n": 4059,
+   "linear (pandas default, used in phase0_results.md)": 2.8478,
+   "nearest-rank, ceil(0.99 n) (numpy inverted_cdf)": 2.8493,
+   "round(0.99 (n-1)) (numpy nearest)": 2.8467
+  },
+  "pooled, all widths": {
+   "n": 20277,
+   "linear (pandas default, used in phase0_results.md)": 2.0542,
+   "nearest-rank, ceil(0.99 n) (numpy inverted_cdf)": 2.0561,
+   "round(0.99 (n-1)) (numpy nearest)": 2.0536
+  }
+ }
+}
