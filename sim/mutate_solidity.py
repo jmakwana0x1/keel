@@ -8,6 +8,7 @@ Writes data/phase1_mutations.json; data/verification.md is written from it.
 from __future__ import annotations
 
 import hashlib
+import shutil
 import json
 import os
 import subprocess
@@ -118,6 +119,41 @@ def main(phase: str):
     assert results["after_restore"] == results["baseline"], "not green after restore"
 
 
+SUITES_INV = "ComplianceInvariantTest|BreachInvariantTest|FragmentationInvariantTest"
+# The planted bug each invariant suite exists to catch (rule 6), plus two that test localisation across suites.
+MUTATIONS_INV = ["uncredited proof pays", "pull does not void credit", "bounty above donation", "staleness ignored",
+                 "partial coverage breaches"]
+
+
+def invariants():
+    """Run the invariant suites clean, under each planted bug, and clean again; write the transcript."""
+    cache = ROOT / "cache" / "invariant"
+    def run():
+        shutil.rmtree(cache, ignore_errors=True)  # never replay a persisted counterexample from another build
+        return run_suites(SUITES_INV)
+    results = {"baseline": run()}
+    for name in MUTATIONS_INV:
+        path, edits = MUTATIONS2[name]
+        f = ROOT / path
+        original = f.read_bytes()
+        h = sha(f)
+        text = original.decode()
+        for old, new in edits:
+            assert text.count(old) == 1, f"{name}: anchor occurs {text.count(old)} times"
+            text = text.replace(old, new)
+        f.write_text(text)
+        try:
+            results[name] = run()
+        finally:
+            f.write_bytes(original)
+            assert sha(f) == h, f"{name}: restore failed"
+        print(name, [k for k, v in results[name].items() if v != "pass"], flush=True)
+    results["after_restore"] = run()
+    (ROOT / "data" / "phase2_invariant_mutations.json").write_text(json.dumps(results, indent=1) + "\n")
+    assert all(v == "pass" for v in results["baseline"].values()), "baseline not green"
+    assert results["after_restore"] == results["baseline"], "not green after restore"
+
+
 def probe(names: list[str]):
     """Run only the named Phase 2 mutations and print what fails. Writes nothing; the transcript comes from main."""
     for name in names:
@@ -139,7 +175,9 @@ def probe(names: list[str]):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 2 and sys.argv[1] == "probe":
+    if len(sys.argv) > 1 and sys.argv[1] == "inv":
+        invariants()
+    elif len(sys.argv) > 2 and sys.argv[1] == "probe":
         probe(sys.argv[2:])
     else:
         main(sys.argv[1] if len(sys.argv) > 1 else "1")
