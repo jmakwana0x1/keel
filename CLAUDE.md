@@ -66,7 +66,11 @@ A check that passes for the wrong reason is worse than no check, because it cons
 ### 7. Prefer a second implementation to a tolerance
 
 - The meter is diffed against the real `PoolManager` at **zero tolerance**. Any tolerance absorbs the bug that a tolerance would have caught.
-- The TWAP ring and the variance estimator have a Python reference in `sim/`, written from the specification rather than from the Solidity.
+- **A differential against code the pool shares is not a second implementation** (D1.8). The meter and the `PoolManager` both run v4-core's `SqrtPriceMath`. A rounding bug planted there passed the value side of the `PoolManager` diff, because both sides carried it. It failed only on the deposit side, by reverting with `Panic(0x11)`, so a `PoolManager`-only suite would have scored it caught for the wrong reason. The spec-derived Python reference in `sim/` caught it on the value side. That reference is therefore a **required gate**, not a redundancy.
+- The estimators that exist, and their references:
+  - the walk (and its segmented continuation, D2.10): the `PoolManager` at zero tolerance, plus `sim/depth_reference.py`;
+  - the closed-form contribution: an exact rational reference in `sim/ffi_contribution.py`, equal to its floor.
+- The TWAP ring and the variance estimator are **not built** (D2.6: they arrive with D1.6's mark). When they are, each gets a Python reference written from the specification rather than from the Solidity, before it prices anything.
 - Where two implementations agree to the wei, say so. Where they agree to a bound, say which bound.
 
 ### 8. Publish the inconvenient measurement
@@ -87,7 +91,7 @@ These are settled. Do not relitigate them mid-session.
 | **Constants** | All immutable at deploy. None governable. |
 | **Permission bits** | Three: `afterInitialize`, `beforeSwap`, `beforeSwapReturnDelta`. Every liquidity-lifecycle bit is **zero**, asserted on-chain against the deployed address. |
 | **Positions** | Hook-owned, two salts. `BOND_SALT` is mint-only forever. `keccak(mandateId)` is reshapeable by that curator only, only while ACTIVE. |
-| **Measurement** | All metering happens in `prove()`. The swap path carries only the `O(1)` skim. |
+| **Measurement** | All metering happens in `prove()`. The swap path carries only the `O(1)` skim. The walk lives in `KeelMeter`, a separate immutable contract reached by plain `CALL` (D2.7): about 2.6k gas cold, on the breach path only. The compliant path never calls it. |
 | **Settlement** | Flash accounting and ERC-6909 claims. Nothing held between transactions. |
 
 ---
